@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Vacancy;
+use Illuminate\Support\Facades\Http;
+
+class TelegramNotifier
+{
+    private const MAX_LENGTH = 3900;
+
+    public function sendVacancy(string $token, string $chatId, Vacancy $vacancy): void
+    {
+        $this->sendText($token, $chatId, $this->formatMessage($vacancy));
+    }
+
+    public function sendText(string $token, string $chatId, string $text): void
+    {
+        $response = Http::timeout(15)->connectTimeout(10)
+            ->asForm()
+            ->post("https://api.telegram.org/bot{$token}/sendMessage", [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true,
+            ]);
+
+        if (! $response->successful()) {
+            $description = $response->json('description') ?? ('HTTP ' . $response->status());
+            throw new \RuntimeException("Telegram API: {$description}");
+        }
+    }
+
+    private function formatMessage(Vacancy $vacancy): string
+    {
+        $e = fn (?string $value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+
+        $lines = ['<b>' . $e($vacancy->title) . '</b>'];
+
+        $companyLocation = implode(', ', array_filter([$vacancy->company, $vacancy->location]));
+        if ($companyLocation !== '') {
+            $lines[] = $e($companyLocation);
+        }
+        if ($vacancy->salary) {
+            $lines[] = '💰 ' . $e($vacancy->salary);
+        }
+        if ($vacancy->score !== null) {
+            $lines[] = "Score: {$vacancy->score}/100";
+        }
+        if ($vacancy->score_reason) {
+            $lines[] = $e($vacancy->score_reason);
+        }
+        $lines[] = '';
+        $lines[] = '<a href="' . $e($vacancy->url) . '">Открыть вакансию</a>';
+
+        return mb_substr(implode("\n", $lines), 0, self::MAX_LENGTH);
+    }
+}

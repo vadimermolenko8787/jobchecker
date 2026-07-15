@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Setting extends Model
+{
+    protected $primaryKey = 'key';
+    public $incrementing = false;
+    protected $keyType = 'string';
+    protected $fillable = ['key', 'value'];
+    protected $casts = ['value' => 'json'];
+
+    public const DEFAULTS = [
+        'cron_expression' => '0 */6 * * *',
+        'schedule_enabled' => false,
+        'sources' => [
+            'dou' => true,
+            'djinni' => true,
+            'justjoin' => true,
+            'linkedin' => true,
+            'indeed' => false,
+        ],
+        'search_keywords' => [],
+        'locations' => ['Germany'],
+        'remote_only' => true,
+        'include_keywords' => [],
+        'exclude_keywords' => [],
+        'min_score' => 70,
+        'max_generate_per_run' => 5,
+        'cover_letter_language' => 'en',
+        'dou_category' => 'PHP',
+        'djinni_primary_keyword' => 'PHP',
+        'justjoin_category' => 3,
+        'indeed_country' => 'DE',
+        'telegram_enabled' => false,
+        'telegram_bot_token' => '',
+        'telegram_chat_id' => '',
+    ];
+
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        $row = static::query()->find($key);
+        if ($row !== null) {
+            return $row->value;
+        }
+
+        return $default ?? (static::DEFAULTS[$key] ?? null);
+    }
+
+    public static function set(string $key, mixed $value): void
+    {
+        static::query()->updateOrCreate(['key' => $key], ['value' => $value]);
+    }
+
+    /** @return array<string, mixed> */
+    public static function all_settings(): array
+    {
+        $stored = static::query()->pluck('value', 'key')->all();
+
+        return array_merge(static::DEFAULTS, $stored);
+    }
+}

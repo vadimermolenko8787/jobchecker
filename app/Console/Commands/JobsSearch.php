@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class JobsSearch extends Command
 {
     protected $signature = 'jobs:search {--trigger=manual}';
-    protected $description = 'Fetch vacancies from all enabled sources, score them against the resume and generate application documents';
+    protected $description = 'Fetch vacancies from all enabled sources, score them against the resume and notify about matches';
 
     public function handle(Pipeline $pipeline): int
     {

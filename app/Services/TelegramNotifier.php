@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 class TelegramNotifier
 {
     private const MAX_LENGTH = 3900;
+    private const SUMMARY_LENGTH = 600;
 
     public function sendVacancy(string $token, string $chatId, Vacancy $vacancy): void
     {
@@ -49,6 +50,16 @@ class TelegramNotifier
         }
         if ($vacancy->score_reason) {
             $lines[] = $e($vacancy->score_reason);
+        }
+        if ($summary = $vacancy->analysis['summary'] ?? null) {
+            $lines[] = '';
+            $lines[] = '<i>' . $e(mb_substr($summary, 0, self::SUMMARY_LENGTH)) . '</i>';
+        }
+        $lang = $vacancy->analysis['language'] ?? null;
+        if (in_array($lang['language_fit'] ?? null, ['warning', 'critical'], true)) {
+            $icon = $lang['language_fit'] === 'critical' ? '‼️' : '⚠️';
+            $note = trim(implode('. ', array_filter([$lang['vacancy_language'] ?? null, $lang['note'] ?? null])), ' .');
+            $lines[] = $icon . ' Язык: ' . $e($note . '.');
         }
         $lines[] = '';
         $lines[] = '<a href="' . $e($vacancy->url) . '">Открыть вакансию</a>';

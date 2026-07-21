@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\Resume;
 use App\Models\Run;
 use App\Models\Setting;
@@ -15,16 +16,18 @@ use App\Services\Sources\LinkedInSource;
 use App\Services\Sources\SourceHttp;
 use App\Services\Sources\VacancyData;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class Pipeline
 {
     private const SCORE_BATCH_SIZE = 10;
     private const DESCRIPTION_SNIPPET = 1500;
+    private const RESEARCH_PER_RUN_LIMIT = 5;
 
     public function __construct(
         private ClaudeCli $claude,
-        private DocumentGenerator $generator,
         private TelegramNotifier $telegram,
+        private CompanyResearcher $researcher,
     ) {
     }
 
@@ -40,11 +43,11 @@ class Pipeline
             $run->appendLog("Всего получено: " . count($fetched) . ", новых после фильтров: {$newCount}");
 
             if (! $resume) {
-                $run->appendLog('Резюме не загружено — scoring и генерация пропущены.');
+                $run->appendLog('Резюме не загружено — scoring пропущен.');
             } else {
                 $matched = $this->scoreNew($run, $resume, $settings, $stats);
                 $this->notifyMatched($run, $matched, $settings, $stats);
-                $this->generateDocuments($run, $resume, $settings, $stats);
+                $this->researchCompanies($run, $matched, $settings, $stats);
             }
 
             $run->update(['status' => 'ok', 'stats' => $stats, 'finished_at' => now()]);
@@ -147,6 +150,7 @@ class Pipeline
         }
         $run->appendLog('Scoring через Claude: ' . $pending->count() . ' вакансий...');
         $minScore = (int) ($settings['min_score'] ?? 70);
+        $knownLanguages = implode(', ', (array) ($settings['known_languages'] ?? ['English', 'Russian', 'Ukrainian']));
         $scored = 0;
 
         foreach ($pending->chunk(self::SCORE_BATCH_SIZE) as $batch) {
@@ -161,10 +165,26 @@ class Pipeline
 
             $prompt = "You are screening job vacancies for a candidate.\n\n"
                 . "CANDIDATE RESUME:\n" . $resume->text . "\n\n"
+                . "CANDIDATE KNOWN LANGUAGES: {$knownLanguages}\n\n"
                 . "VACANCIES (JSON):\n" . json_encode($payload, JSON_UNESCAPED_UNICODE) . "\n\n"
-                . "For EVERY vacancy rate how well it matches the candidate (skills, seniority, stack, location/remote fit) "
-                . "on a 0-100 scale. Respond with ONLY a JSON array, no other text:\n"
-                . '[{"id": <vacancy id>, "score": <0-100>, "reason": "<one short sentence in English>"}]';
+                . "For EVERY vacancy do ALL of the following:\n"
+                . "1. Rate how well it matches the candidate (skills, seniority, stack, location/remote fit) on a 0-100 scale.\n"
+                . "2. Determine the language the posting is written in and the languages the role actually requires "
+                . "(explicitly stated or strongly implied, e.g. \"client communication in German\").\n"
+                . "3. Assess the language barrier against the candidate's known languages. Judge how critical an unknown "
+                . "language really is: a posting written in Polish for a developer role in a likely English-speaking team "
+                . "is only a mild concern (warning); an explicit requirement like \"German C1 for client communication\" "
+                . "is critical. The barrier MUST affect the score: critical barrier -> score at most 40; "
+                . "warning -> reduce the score by 10-20; ok -> no change.\n"
+                . "4. Write a short factual summary of the vacancy IN RUSSIAN: 2-3 sentences covering the role, "
+                . "stack and conditions (remote/salary/company type). No marketing fluff.\n\n"
+                . "Respond with ONLY a JSON array, no other text:\n"
+                . '[{"id": <vacancy id>, "score": <0-100>, "reason": "<one short sentence in English>", '
+                . '"summary": "<2-3 предложения на русском>", '
+                . '"language": {"vacancy_language": "<language the posting is written in>", '
+                . '"required_languages": ["<language>", ...], '
+                . '"language_fit": "ok" | "warning" | "critical", '
+                . '"note": "<короткое пояснение на русском; пустая строка если fit = ok>"}}]';
 
             try {
                 $answers = $this->claude->json($prompt);
@@ -182,6 +202,7 @@ class Pipeline
                 $vacancy->update([
                     'score' => $score,
                     'score_reason' => (string) ($answer['reason'] ?? ''),
+                    'analysis' => $this->parseAnalysis($answer) ?: null,
                     'status' => $score >= $minScore ? 'matched' : 'rejected',
                 ]);
                 if ($vacancy->status === 'matched') {
@@ -196,6 +217,31 @@ class Pipeline
         $stats['matched'] = $matched->count();
 
         return $matched;
+    }
+
+    /**
+     * Extract the optional summary/language block from a scoring answer;
+     * missing or malformed fields never break scoring.
+     */
+    private function parseAnalysis(array $answer): array
+    {
+        $analysis = [];
+
+        if (is_string($answer['summary'] ?? null) && trim($answer['summary']) !== '') {
+            $analysis['summary'] = trim($answer['summary']);
+        }
+
+        $lang = $answer['language'] ?? null;
+        if (is_array($lang)) {
+            $analysis['language'] = [
+                'vacancy_language' => is_string($lang['vacancy_language'] ?? null) ? $lang['vacancy_language'] : null,
+                'required_languages' => array_values(array_filter((array) ($lang['required_languages'] ?? []), 'is_string')),
+                'language_fit' => in_array($lang['language_fit'] ?? null, ['ok', 'warning', 'critical'], true) ? $lang['language_fit'] : null,
+                'note' => is_string($lang['note'] ?? null) ? trim($lang['note']) : null,
+            ];
+        }
+
+        return $analysis;
     }
 
     /** @param Collection<int, Vacancy> $matched */
@@ -228,35 +274,55 @@ class Pipeline
         $stats['notified'] = $sent;
     }
 
-    private function generateDocuments(Run $run, Resume $resume, array $settings, array &$stats): void
+    /** @param Collection<int, Vacancy> $matched */
+    private function researchCompanies(Run $run, Collection $matched, array $settings, array &$stats): void
     {
-        $limit = (int) ($settings['max_generate_per_run'] ?? 5);
-        if ($limit === 0) {
-            $run->appendLog('Генерация после поиска отключена (лимит 0).');
-
+        if (empty($settings['company_research_enabled'])) {
             return;
         }
-        $matched = Vacancy::query()
-            ->where('status', 'matched')
-            ->orderByDesc('score')
-            ->limit($limit)
-            ->get();
-        if ($matched->isEmpty()) {
+
+        $names = $matched->pluck('company')->filter()
+            ->unique(fn (string $name) => Company::normalize($name))
+            ->values();
+        if ($names->isEmpty()) {
             return;
         }
-        $run->appendLog('Генерация документов для ' . $matched->count() . ' вакансий...');
-        $generated = 0;
+        if ($names->count() > self::RESEARCH_PER_RUN_LIMIT) {
+            $skipped = $names->slice(self::RESEARCH_PER_RUN_LIMIT);
+            $run->appendLog('Исследование компаний: лимит ' . self::RESEARCH_PER_RUN_LIMIT . ' за запуск, пропущены: ' . $skipped->implode(', '));
+            $names = $names->take(self::RESEARCH_PER_RUN_LIMIT);
+        }
 
-        foreach ($matched as $vacancy) {
+        $run->appendLog('Исследование компаний: ' . $names->count() . '...');
+        $researched = 0;
+
+        foreach ($names as $name) {
+            $company = Company::firstOrCreateForName($name);
+            if ($this->researcher->isFresh($company)) {
+                $run->appendLog("[{$company->name}] кэш свежий, пропускаю");
+                continue;
+            }
+            $flag = "company-researching:{$company->id}";
+            if (Cache::has($flag)) {
+                $run->appendLog("[{$company->name}] исследование уже идёт, пропускаю");
+                continue;
+            }
+
+            Cache::put($flag, true, now()->addMinutes(20));
             try {
-                $this->generator->generate($resume, $vacancy);
-                $generated++;
-                $run->appendLog("[{$vacancy->id}] {$vacancy->title} — резюме и cover letter готовы");
+                $context = $matched->first(fn (Vacancy $v) => $v->company && Company::normalize($v->company) === $company->normalized_name);
+                $this->researcher->research($company, $context);
+                $researched++;
+                $run->appendLog("[{$company->name}] исследование готово");
             } catch (\Throwable $e) {
-                $run->appendLog("[{$vacancy->id}] генерация не удалась: {$e->getMessage()}");
+                $company->update(['last_error' => $e->getMessage()]);
+                $run->appendLog("[{$company->name}] исследование не удалось: {$e->getMessage()}");
+            } finally {
+                Cache::forget($flag);
             }
         }
 
-        $stats['generated'] = $generated;
+        $stats['researched'] = $researched;
     }
+
 }

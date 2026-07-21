@@ -21,8 +21,10 @@ class SettingsController extends Controller
             'include_keywords' => ['nullable', 'string'],
             'exclude_keywords' => ['nullable', 'string'],
             'min_score' => ['required', 'integer', 'min:0', 'max:100'],
-            'max_generate_per_run' => ['required', 'integer', 'min:0', 'max:50'],
             'cover_letter_language' => ['required', 'string', 'in:' . implode(',', array_keys(\App\Services\DocumentGenerator::LANGUAGES))],
+            'known_languages' => ['nullable', 'string'],
+            'company_research_enabled' => ['nullable', 'boolean'],
+            'company_research_ttl_days' => ['required', 'integer', 'min:1', 'max:365'],
             'dou_category' => ['nullable', 'string'],
             'djinni_primary_keyword' => ['nullable', 'string'],
             'justjoin_category' => ['nullable', 'integer'],
@@ -50,8 +52,10 @@ class SettingsController extends Controller
         Setting::set('include_keywords', $csv($data['include_keywords'] ?? null));
         Setting::set('exclude_keywords', $csv($data['exclude_keywords'] ?? null));
         Setting::set('min_score', (int) $data['min_score']);
-        Setting::set('max_generate_per_run', (int) $data['max_generate_per_run']);
         Setting::set('cover_letter_language', $data['cover_letter_language']);
+        Setting::set('known_languages', $csv($data['known_languages'] ?? null) ?: Setting::DEFAULTS['known_languages']);
+        Setting::set('company_research_enabled', (bool) ($data['company_research_enabled'] ?? false));
+        Setting::set('company_research_ttl_days', (int) $data['company_research_ttl_days']);
         Setting::set('dou_category', $data['dou_category'] ?? 'PHP');
         Setting::set('djinni_primary_keyword', $data['djinni_primary_keyword'] ?? 'PHP');
         Setting::set('justjoin_category', (int) ($data['justjoin_category'] ?? 3));

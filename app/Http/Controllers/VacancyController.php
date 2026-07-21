@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Resume;
 use App\Models\Run;
 use App\Models\Vacancy;
@@ -54,6 +55,7 @@ class VacancyController extends Controller
             return $full && is_file($full) ? file_get_contents($full) : null;
         };
         $resumeIsHtml = str_ends_with((string) $vacancy->resume_path, '.html');
+        $company = Company::forName($vacancy->company);
 
         return view('vacancies.show', [
             'vacancy' => $vacancy,
@@ -63,6 +65,8 @@ class VacancyController extends Controller
             'generating' => Cache::get("vacancy-generating:{$vacancy->id}"),
             'generationError' => Cache::pull("vacancy-generating-error:{$vacancy->id}"),
             'hasResume' => Resume::active() !== null,
+            'company' => $company,
+            'companyResearching' => $company && Cache::has("company-researching:{$company->id}"),
         ]);
     }
 
@@ -87,6 +91,8 @@ class VacancyController extends Controller
         if (! array_key_exists((string) $lang, DocumentGenerator::LANGUAGES)) {
             $lang = null;
         }
+        $instructions = trim((string) $request->input('extra_instructions'));
+        $instructions = mb_substr($instructions, 0, 2000);
 
         Cache::put("vacancy-generating:{$vacancy->id}", $doc, now()->addMinutes(15));
         $php = escapeshellarg(PHP_BINARY);
@@ -94,9 +100,29 @@ class VacancyController extends Controller
         $id = (int) $vacancy->id;
         $docArg = escapeshellarg($doc);
         $langArg = $lang ? ' --lang=' . escapeshellarg($lang) : '';
-        exec("nohup {$php} {$artisan} jobs:generate {$id} --doc={$docArg}{$langArg} > /dev/null 2>&1 &");
+        $instructionsArg = $instructions !== '' ? ' --instructions=' . escapeshellarg($instructions) : '';
+        exec("nohup {$php} {$artisan} jobs:generate {$id} --doc={$docArg}{$langArg}{$instructionsArg} > /dev/null 2>&1 &");
 
         return back()->with('status', 'Генерация запущена, займёт минуту-две. Страница обновится сама.');
+    }
+
+    public function researchCompany(Vacancy $vacancy)
+    {
+        if (! $vacancy->company) {
+            return back()->with('error', 'У вакансии не указана компания.');
+        }
+        $company = Company::firstOrCreateForName($vacancy->company);
+        if (Cache::has("company-researching:{$company->id}")) {
+            return back()->with('error', 'Исследование этой компании уже идёт.');
+        }
+
+        Cache::put("company-researching:{$company->id}", true, now()->addMinutes(20));
+        $php = escapeshellarg(PHP_BINARY);
+        $artisan = escapeshellarg(base_path('artisan'));
+        $id = (int) $vacancy->id;
+        exec("nohup {$php} {$artisan} company:research {$id} --force > /dev/null 2>&1 &");
+
+        return back()->with('status', 'Исследование компании запущено (1-3 минуты). Страница обновится сама.');
     }
 
     public function previewResume(Vacancy $vacancy)

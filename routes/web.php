@@ -28,3 +28,5 @@ Route::post('/vacancies/{vacancy}/generate/{doc}', [VacancyController::class, 'g
     ->whereIn('doc', ['resume', 'cover_letter', 'both'])->name('vacancies.generate');
 Route::post('/vacancies/{vacancy}/applied', [VacancyController::class, 'toggleApplied'])
     ->name('vacancies.applied');
+Route::post('/vacancies/{vacancy}/research-company', [VacancyController::class, 'researchCompany'])
+    ->name('vacancies.research-company');

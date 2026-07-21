@@ -84,9 +84,9 @@ class ClaudeCli
      * Run a prompt that must answer with JSON and decode it, tolerating
      * preambles and markdown fences around the JSON.
      */
-    public function json(string $prompt, ?int $timeout = null): mixed
+    public function json(string $prompt, ?int $timeout = null, array $allowedTools = [], ?string $workDir = null): mixed
     {
-        $text = $this->run($prompt, $timeout);
+        $text = $this->run($prompt, $timeout, $allowedTools, $workDir);
         $decoded = json_decode($text, true);
         if ($decoded !== null) {
             return $decoded;

@@ -90,7 +90,7 @@
             </div>
             <div class="card-body">
                 <p class="muted" style="margin-top:0">
-                    Обход выбранных источников, скоринг вакансий по резюме и генерация документов для лучших совпадений.
+                    Обход выбранных источников и скоринг вакансий по резюме. Документы генерируются только вручную со страницы вакансии.
                 </p>
                 <form method="post" action="{{ route('run.start') }}">
                     @csrf
@@ -167,11 +167,6 @@
                         <input type="number" name="min_score" min="0" max="100" value="{{ $settings['min_score'] }}" required>
                     </div>
                     <div class="field">
-                        <span class="lab">Макс. генераций за запуск</span>
-                        <input type="number" name="max_generate_per_run" min="0" max="50" value="{{ $settings['max_generate_per_run'] }}" required>
-                        <span class="help">0 — не генерировать документы после поиска.</span>
-                    </div>
-                    <div class="field">
                         <span class="lab">Язык cover letter</span>
                         <select name="cover_letter_language">
                             @foreach (\App\Services\DocumentGenerator::LANGUAGE_LABELS as $code => $label)
@@ -179,6 +174,11 @@
                             @endforeach
                         </select>
                         <span class="help">Резюме всегда на английском.</span>
+                    </div>
+                    <div class="field">
+                        <span class="lab">Известные языки</span>
+                        <input type="text" name="known_languages" value="{{ implode(', ', $settings['known_languages']) }}">
+                        <span class="help">Через запятую. Влияет на оценку: вакансии на неизвестных языках получают предупреждение и сниженный score.</span>
                     </div>
                 </div>
 
@@ -190,6 +190,21 @@
                             <div class="field"><span class="lab">Primary keyword Djinni</span><input type="text" name="djinni_primary_keyword" value="{{ $settings['djinni_primary_keyword'] }}"></div>
                             <div class="field"><span class="lab">Категория justjoin.it <span class="faint">(число, 3 = PHP)</span></span><input type="number" name="justjoin_category" value="{{ $settings['justjoin_category'] }}"></div>
                             <div class="field"><span class="lab">Страна Indeed <span class="faint">(код)</span></span><input type="text" name="indeed_country" maxlength="2" value="{{ $settings['indeed_country'] }}"></div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="box">
+                    <summary>Исследование компаний</summary>
+                    <div class="details-body">
+                        <label class="check" style="margin-bottom:12px"><input type="checkbox" name="company_research_enabled" value="1" @checked($settings['company_research_enabled'])> Автоматически исследовать компании подходящих вакансий</label>
+                        <div class="help" style="margin-bottom:12px">Поиск отзывов сотрудников (Glassdoor, Indeed, DOU и др.) через веб-поиск. До 5 компаний за запуск, 1-3 минуты на компанию. Исследовать можно и вручную со страницы вакансии.</div>
+                        <div class="form-grid">
+                            <div class="field">
+                                <span class="lab">Срок свежести кэша, дней</span>
+                                <input type="number" name="company_research_ttl_days" min="1" max="365" value="{{ $settings['company_research_ttl_days'] }}" required>
+                                <span class="help">Компания не исследуется повторно, пока результат моложе этого срока.</span>
+                            </div>
                         </div>
                     </div>
                 </details>
@@ -235,19 +250,18 @@
         <div class="card-body" style="padding:0">
             <div class="table-wrap" style="border:none;border-radius:0">
                 <table class="data">
-                    <thead><tr><th>#</th><th>Тип</th><th>Статус</th><th>Начало</th><th>Конец</th><th>Статистика</th></tr></thead>
+                    <thead><tr><th>#</th><th>Тип</th><th>Статус</th><th>Время запуска</th><th>Статистика</th></tr></thead>
                     <tbody>
                     @forelse ($runs as $run)
                         <tr>
                             <td><a href="{{ route('runs.show', $run) }}" class="mono" style="font-weight:600">#{{ $run->id }}</a></td>
                             <td><span class="tag">{{ $run->trigger }}</span></td>
                             <td><span class="badge -{{ $run->status }}">{{ $run->status }}</span></td>
-                            <td class="mono faint nowrap" style="font-size:12.5px">{{ $run->started_at?->format('d.m H:i:s') }}</td>
-                            <td class="mono faint nowrap" style="font-size:12.5px">{{ $run->finished_at?->format('d.m H:i:s') ?? '—' }}</td>
+                            <td class="mono faint nowrap" style="font-size:12.5px">{{ $run->started_at?->setTimezone('Europe/Berlin')->format('d.m H:i:s') }}</td>
                             <td class="mono muted" style="font-size:12px">{{ $run->stats ? json_encode($run->stats, JSON_UNESCAPED_UNICODE) : '' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="6"><div class="empty">Запусков ещё не было. Нажмите «Запустить поиск».</div></td></tr>
+                        <tr><td colspan="5"><div class="empty">Запусков ещё не было. Нажмите «Запустить поиск».</div></td></tr>
                     @endforelse
                     </tbody>
                 </table>

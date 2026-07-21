@@ -38,8 +38,9 @@ class DocumentGenerator
      *
      * @param  string  $what  'resume' | 'cover_letter' | 'both'
      * @param  string|null  $coverLanguage  language code from self::LANGUAGES; null = global setting
+     * @param  string|null  $extraInstructions  free-form user instructions for the cover letter
      */
-    public function generate(Resume $resume, Vacancy $vacancy, string $what = 'both', ?string $coverLanguage = null): void
+    public function generate(Resume $resume, Vacancy $vacancy, string $what = 'both', ?string $coverLanguage = null, ?string $extraInstructions = null): void
     {
         $coverLanguage ??= (string) Setting::get('cover_letter_language');
         if (! isset(self::LANGUAGES[$coverLanguage])) {
@@ -85,6 +86,9 @@ class DocumentGenerator
                 ? 'written in the same language as the vacancy description'
                 : 'written in ' . self::LANGUAGES[$coverLanguage];
             $tasks[] = "- Write a concise, specific cover letter in Markdown (max ~300 words) for this vacancy, {$coverLangInstruction}.";
+            if ($extraInstructions !== null && trim($extraInstructions) !== '') {
+                $tasks[] = '- Additional instructions from the candidate for the cover letter, follow them: ' . trim($extraInstructions);
+            }
             $format[] = "===COVER_LETTER===\n<cover letter markdown>";
         }
         if ($wantCover && ! $wantResume && $hasPdf) {

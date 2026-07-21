@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 class JobsGenerate extends Command
 {
-    protected $signature = 'jobs:generate {vacancy} {--doc=both : resume | cover_letter | both} {--lang= : cover letter language code}';
+    protected $signature = 'jobs:generate {vacancy} {--doc=both : resume | cover_letter | both} {--lang= : cover letter language code} {--instructions= : extra instructions for the cover letter}';
     protected $description = 'Generate an adapted resume and/or cover letter for a single vacancy via Claude CLI';
 
     public function handle(DocumentGenerator $generator): int
@@ -31,7 +31,7 @@ class JobsGenerate extends Command
 
         Cache::put("vacancy-generating:{$vacancy->id}", $doc, now()->addMinutes(15));
         try {
-            $generator->generate($resume, $vacancy, $doc, $this->option('lang') ?: null);
+            $generator->generate($resume, $vacancy, $doc, $this->option('lang') ?: null, $this->option('instructions') ?: null);
             $this->info("Vacancy #{$vacancy->id}: {$doc} generated.");
 
             return self::SUCCESS;

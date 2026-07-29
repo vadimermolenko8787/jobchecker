@@ -86,28 +86,97 @@ class ClaudeCli
      */
     public function json(string $prompt, ?int $timeout = null, array $allowedTools = [], ?string $workDir = null): mixed
     {
-        $text = $this->run($prompt, $timeout, $allowedTools, $workDir);
-        $decoded = json_decode($text, true);
-        if ($decoded !== null) {
-            return $decoded;
-        }
+        return $this->decode($this->run($prompt, $timeout, $allowedTools, $workDir));
+    }
 
-        if (preg_match('/```(?:json)?\s*(.*?)```/s', $text, $m)) {
-            $decoded = json_decode(trim($m[1]), true);
-            if ($decoded !== null) {
-                return $decoded;
+    /** @throws \RuntimeException when nothing decodable can be recovered from the answer */
+    public function decode(string $text): mixed
+    {
+        foreach ($this->candidates($text) as $candidate) {
+            if ($candidate === '') {
+                continue;
             }
-        }
-
-        $start = min(array_filter([strpos($text, '['), strpos($text, '{')], fn ($p) => $p !== false) ?: [false]);
-        $end = max(strrpos($text, ']'), strrpos($text, '}'));
-        if ($start !== false && $end !== false && $end > $start) {
-            $decoded = json_decode(substr($text, $start, $end - $start + 1), true);
+            $decoded = json_decode($candidate, true);
             if ($decoded !== null) {
                 return $decoded;
             }
         }
 
         throw new \RuntimeException('claude did not return valid JSON: ' . mb_substr($text, 0, 500));
+    }
+
+    /**
+     * Progressively looser readings of the answer, cheapest first.
+     *
+     * @return iterable<string>
+     */
+    private function candidates(string $text): iterable
+    {
+        yield $text;
+
+        // A cut-off answer never emits its closing fence, so it stays optional here.
+        if (preg_match('/```(?:json)?\s*(.*?)(?:```|$)/s', $text, $m)) {
+            $fenced = trim($m[1]);
+            yield $fenced;
+            yield $this->closeTruncatedList($fenced);
+        }
+
+        $start = min(array_filter([strpos($text, '['), strpos($text, '{')], fn ($p) => $p !== false) ?: [false]);
+        $end = max(strrpos($text, ']'), strrpos($text, '}'));
+        if ($start !== false && $end !== false && $end > $start) {
+            yield substr($text, $start, $end - $start + 1);
+        }
+
+        yield $this->closeTruncatedList($text);
+    }
+
+    /**
+     * Salvage a JSON array that was cut off mid-answer: keep the elements that
+     * arrived complete and close the array. Without this a truncated batch reply
+     * loses every item in the batch, not just the unfinished one.
+     */
+    private function closeTruncatedList(string $text): string
+    {
+        $start = strpos($text, '[');
+        if ($start === false) {
+            return '';
+        }
+
+        $depth = 0;
+        $inString = false;
+        $escaped = false;
+        $lastComplete = null;
+
+        for ($i = $start, $len = strlen($text); $i < $len; $i++) {
+            $char = $text[$i];
+
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ($char === '\\') {
+                    $escaped = true;
+                } elseif ($char === '"') {
+                    $inString = false;
+                }
+
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = true;
+            } elseif ($char === '[' || $char === '{') {
+                $depth++;
+            } elseif ($char === ']' || $char === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($text, $start, $i - $start + 1);
+                }
+                if ($depth === 1) {
+                    $lastComplete = $i;
+                }
+            }
+        }
+
+        return $lastComplete === null ? '' : substr($text, $start, $lastComplete - $start + 1) . ']';
     }
 }

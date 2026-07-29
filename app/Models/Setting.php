@@ -28,6 +28,7 @@ class Setting extends Model
         'include_keywords' => [],
         'exclude_keywords' => [],
         'min_score' => 70,
+        'score_weights' => ['skills' => 40, 'stack' => 25, 'seniority' => 20, 'location' => 15],
         'cover_letter_language' => 'en',
         'known_languages' => ['English', 'Russian', 'Ukrainian'],
         'company_research_enabled' => false,

@@ -182,6 +182,21 @@
                     </div>
                 </div>
 
+                @php($weights = \App\Services\VacancyScorer::weights($settings))
+                <div class="section-label">Веса критериев скоринга</div>
+                <div class="form-grid -tri">
+                    @foreach (\App\Services\VacancyScorer::LABELS as $key => $label)
+                        <div class="field">
+                            <span class="lab">{{ $label }}</span>
+                            <input type="number" name="score_weights[{{ $key }}]" min="0" max="100" value="{{ $weights[$key] }}" required>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="faint" style="font-size:12px;line-height:1.5;margin-top:8px">
+                    Каждый критерий модель оценивает 0-10, итоговый score считается как взвешенная сумма.
+                    Веса нормализуются автоматически, сумма не обязана быть 100.
+                </div>
+
                 <details class="box">
                     <summary>Параметры источников</summary>
                     <div class="details-body">

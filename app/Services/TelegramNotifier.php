@@ -48,6 +48,13 @@ class TelegramNotifier
         if ($vacancy->score !== null) {
             $lines[] = "Score: {$vacancy->score}/100";
         }
+        if (is_array($vacancy->score_breakdown['criteria'] ?? null)) {
+            $parts = [];
+            foreach (VacancyScorer::LABELS as $key => $label) {
+                $parts[] = $label . ' ' . (int) ($vacancy->score_breakdown['criteria'][$key]['score'] ?? 0);
+            }
+            $lines[] = $e(implode(' · ', $parts));
+        }
         if ($vacancy->score_reason) {
             $lines[] = $e($vacancy->score_reason);
         }

@@ -41,6 +41,45 @@
                 @endif
             </div>
 
+            @php($bd = $vacancy->score_breakdown ?? [])
+            @if (is_array($bd['criteria'] ?? null))
+                @php($shares = app(\App\Services\VacancyScorer::class)->normalizeWeights($bd['weights'] ?? []))
+                <div class="rubric">
+                    @foreach (\App\Services\VacancyScorer::LABELS as $key => $label)
+                        @php($c = $bd['criteria'][$key] ?? ['score' => 0, 'matched' => [], 'missing' => []])
+                        @php($n = max(0, min(10, (int) ($c['score'] ?? 0))))
+                        @php($color = $n >= 8 ? 'var(--ok)' : ($n >= 6 ? 'var(--signal)' : ($n >= 4 ? 'var(--info)' : 'var(--neutral)')))
+                        <div class="rubric-row">
+                            <span class="rl">{{ $label }}<small>вес {{ round($shares[$key] * 100) }}%</small></span>
+                            <span class="rv" style="color:{{ $color }}">{{ $n }}/10</span>
+                            <span class="track"><span class="fill" style="width:{{ $n * 10 }}%;background:{{ $color }}"></span></span>
+                            @if (! empty($c['matched']) || ! empty($c['missing']))
+                                <span class="rubric-ev">
+                                    @foreach ($c['matched'] ?? [] as $item)
+                                        <span class="-yes">{{ $item }}</span>
+                                    @endforeach
+                                    @foreach ($c['missing'] ?? [] as $item)
+                                        <span>нет: {{ $item }}</span>
+                                    @endforeach
+                                </span>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+                @php($notes = [])
+                @if (($bd['language_fit'] ?? null) === 'critical')
+                    @php($notes[] = 'языковой барьер критичен: score ограничен 40')
+                @elseif (($bd['language_fit'] ?? null) === 'warning')
+                    @php($notes[] = 'языковой барьер: −15 к взвешенной сумме (' . ($bd['base_score'] ?? '?') . ')')
+                @endif
+                @if ($bd['rechecked'] ?? false)
+                    @php($notes[] = 'перепроверено: ' . implode(' / ', $bd['run_scores'] ?? []) . ' → итог ' . $vacancy->score)
+                @endif
+                @if ($notes)
+                    <div class="faint mono" style="font-size:12px;margin-top:12px">{{ implode(' · ', $notes) }}</div>
+                @endif
+            @endif
+
             @if ($vacancy->score_reason)
                 <div style="margin-top:20px;padding:14px 16px;border-left:2px solid var(--signal-line);background:var(--signal-dim);border-radius:0 8px 8px 0;font-size:14px;line-height:1.6">
                     {{ $vacancy->score_reason }}

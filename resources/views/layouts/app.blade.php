@@ -209,6 +209,26 @@
         .meter.-lg .val { font-size: 22px; min-width: 34px; }
         .meter.-none .val { color: var(--faint); }
 
+        /* ---- score rubric breakdown ---- */
+        .rubric { display: grid; gap: 12px; margin-top: 18px; }
+        .rubric-row { display: grid; grid-template-columns: 150px 44px 1fr; gap: 12px; align-items: center; }
+        .rubric-row .rl { font-size: 13.5px; font-weight: 600; }
+        .rubric-row .rl small { display: block; font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--faint); letter-spacing: .04em; }
+        .rubric-row .rv { font-family: var(--mono); font-size: 13px; font-weight: 700; text-align: right; }
+        .rubric-row .track { display: block; height: 6px; border-radius: 999px; background: var(--raised-2); overflow: hidden; }
+        .rubric-row .fill { display: block; height: 100%; border-radius: 999px; min-width: 3px; }
+        .rubric-ev { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 2 / -1; margin-top: -4px; }
+        .rubric-ev span {
+            font-size: 12px; line-height: 1.4; padding: 3px 8px; border-radius: 6px;
+            border: 1px solid var(--line-soft); background: var(--raised-2); color: var(--muted);
+        }
+        .rubric-ev span.-yes { border-color: var(--ok); background: var(--ok-dim); color: var(--ok); }
+        @media (max-width: 640px) {
+            .rubric-row { grid-template-columns: 1fr 44px; }
+            .rubric-row .track { grid-column: 1 / -1; }
+            .rubric-ev { grid-column: 1 / -1; }
+        }
+
         /* ---- tables ---- */
         .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--line); }
         table.data { width: 100%; border-collapse: collapse; font-size: 14px; }

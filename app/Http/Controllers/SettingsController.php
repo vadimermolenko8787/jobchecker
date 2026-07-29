@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Services\TelegramNotifier;
+use App\Services\VacancyScorer;
 use Cron\CronExpression;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,11 @@ class SettingsController extends Controller
             'include_keywords' => ['nullable', 'string'],
             'exclude_keywords' => ['nullable', 'string'],
             'min_score' => ['required', 'integer', 'min:0', 'max:100'],
+            'score_weights' => ['required', 'array'],
+            'score_weights.skills' => ['required', 'integer', 'min:0', 'max:100'],
+            'score_weights.stack' => ['required', 'integer', 'min:0', 'max:100'],
+            'score_weights.seniority' => ['required', 'integer', 'min:0', 'max:100'],
+            'score_weights.location' => ['required', 'integer', 'min:0', 'max:100'],
             'cover_letter_language' => ['required', 'string', 'in:' . implode(',', array_keys(\App\Services\DocumentGenerator::LANGUAGES))],
             'known_languages' => ['nullable', 'string'],
             'company_research_enabled' => ['nullable', 'boolean'],
@@ -38,6 +44,14 @@ class SettingsController extends Controller
             return back()->with('error', 'Невалидное cron-выражение: ' . $data['cron_expression'])->withInput();
         }
 
+        $weights = array_map(
+            fn (string $key) => (int) $data['score_weights'][$key],
+            array_combine(VacancyScorer::CRITERIA, VacancyScorer::CRITERIA),
+        );
+        if (array_sum($weights) === 0) {
+            return back()->with('error', 'Хотя бы один вес критерия должен быть больше нуля.')->withInput();
+        }
+
         $csv = fn (?string $value) => array_values(array_filter(array_map('trim', explode(',', (string) $value))));
 
         Setting::set('cron_expression', $data['cron_expression']);
@@ -52,6 +66,7 @@ class SettingsController extends Controller
         Setting::set('include_keywords', $csv($data['include_keywords'] ?? null));
         Setting::set('exclude_keywords', $csv($data['exclude_keywords'] ?? null));
         Setting::set('min_score', (int) $data['min_score']);
+        Setting::set('score_weights', $weights);
         Setting::set('cover_letter_language', $data['cover_letter_language']);
         Setting::set('known_languages', $csv($data['known_languages'] ?? null) ?: Setting::DEFAULTS['known_languages']);
         Setting::set('company_research_enabled', (bool) ($data['company_research_enabled'] ?? false));

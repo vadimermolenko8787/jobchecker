@@ -28,11 +28,45 @@ class VacancyController extends Controller
     public function index(Request $request)
     {
         $status = $request->query('status');
-        $sort = array_key_exists($request->query('sort'), self::SORTABLE) ? $request->query('sort') : 'date';
+        $sortKey = $request->query('sort');
+        $sort = is_string($sortKey) && array_key_exists($sortKey, self::SORTABLE) ? $sortKey : 'date';
         $dir = $request->query('dir') === 'asc' ? 'asc' : 'desc';
 
+        $text = function (string $key) use ($request): string {
+            $value = $request->query($key);
+
+            return is_string($value) ? mb_substr(trim($value), 0, 200) : '';
+        };
+        $date = function (string $key) use ($request): string {
+            $value = $request->query($key);
+
+            return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : '';
+        };
+        $filters = [
+            'q' => $text('q'),
+            'company' => $text('company'),
+            'from' => $date('from'),
+            'to' => $date('to'),
+        ];
+        // Search terms are substrings, so % and _ typed by the user must not act as wildcards.
+        // "!" as the escape char keeps the clause identical on MariaDB and on SQLite (tests),
+        // unlike a backslash, which each engine quotes differently.
+        $contains = fn (string $column, string $value) => [
+            "{$column} LIKE ? ESCAPE '!'",
+            ['%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value) . '%'],
+        ];
+        $dateColumn = self::SORTABLE['date'];
+        $lastRunId = Run::query()->latest('id')->value('id');
+
         $vacancies = Vacancy::query()
-            ->when($status, fn ($q) => $q->where('status', $status))
+            // Scoring rewrites 'new' to matched/rejected inside the same run, so no row keeps that
+            // status. The tab instead means "from the latest run", which is what the row badge marks.
+            ->when($status === 'new', fn ($q) => $q->where('run_id', $lastRunId ?? 0))
+            ->when($status && $status !== 'new', fn ($q) => $q->where('status', $status))
+            ->when($filters['q'] !== '', fn ($q) => $q->whereRaw(...$contains('title', $filters['q'])))
+            ->when($filters['company'] !== '', fn ($q) => $q->whereRaw(...$contains('company', $filters['company'])))
+            ->when($filters['from'] !== '', fn ($q) => $q->whereRaw("{$dateColumn} >= ?", [$filters['from'] . ' 00:00:00']))
+            ->when($filters['to'] !== '', fn ($q) => $q->whereRaw("{$dateColumn} <= ?", [$filters['to'] . ' 23:59:59']))
             ->orderByRaw(self::SORTABLE[$sort] . ' ' . $dir)
             ->latest('id')
             ->paginate(50)
@@ -43,7 +77,11 @@ class VacancyController extends Controller
             'status' => $status,
             'sort' => $sort,
             'dir' => $dir,
-            'lastRunId' => Run::query()->latest('id')->value('id'),
+            'filters' => $filters,
+            'companies' => Vacancy::query()
+                ->whereNotNull('company')->where('company', '!=', '')
+                ->distinct()->orderBy('company')->limit(500)->pluck('company'),
+            'lastRunId' => $lastRunId,
         ]);
     }
 

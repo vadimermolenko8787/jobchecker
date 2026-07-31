@@ -86,6 +86,8 @@
 
         .main { min-width: 0; }
         .page { max-width: 1080px; margin: 0 auto; padding: 34px 40px 80px; }
+        /* opt-in for table-first pages: 8 columns do not fit the reading-width default */
+        .page.-wide { max-width: 1560px; padding-left: 28px; padding-right: 28px; }
         .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
         .page-head h1 { font-size: 26px; }
         .page-head .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
@@ -139,7 +141,7 @@
         .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
         .field > .lab { font-size: 13px; font-weight: 600; color: var(--text); }
         .field .help { font-size: 12px; color: var(--faint); line-height: 1.5; }
-        input[type=text], input[type=number], input[type=password], select, textarea {
+        input[type=text], input[type=number], input[type=password], input[type=date], select, textarea {
             width: 100%; font: inherit; font-size: 14px; color: var(--text);
             background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-sm);
             padding: 9px 11px; transition: border-color .12s, box-shadow .12s;
@@ -268,6 +270,20 @@
         table.data tbody tr.-new { animation: rowin .5s ease; }
         table.data tbody tr.-new td:first-child { box-shadow: inset 3px 0 0 var(--signal); }
         @keyframes rowin { from { background: var(--signal-dim); } to { background: transparent; } }
+        /* inline filter row inside thead. The offset keeps it below the label row rather than on top
+           of it; note the sticky above is currently inert, since .table-wrap is its own scrollport. */
+        table.data.-filterable thead tr:first-child th { height: 40px; }
+        table.data.-filterable thead tr.-filters th { top: 40px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+        /* input.f-in, not .f-in: it has to outrank the input[type=…] rule above */
+        /* size=1 on the text inputs keeps their intrinsic width from widening the columns */
+        input.f-in {
+            padding: 6px 9px; font-size: 13px; font-weight: 400; min-width: 0;
+            text-transform: none; letter-spacing: normal; color: var(--text);
+        }
+        input.f-in::placeholder { text-transform: none; letter-spacing: normal; font-weight: 400; }
+        .f-dates { display: flex; flex-direction: column; gap: 5px; }
+        .f-dates input.f-in { font-size: 12px; padding: 5px 4px 5px 7px; font-family: var(--mono); }
+
         .v-title { font-weight: 600; color: var(--text); }
         .v-title:hover { color: var(--signal); text-decoration: none; }
         .muted { color: var(--muted); }
@@ -384,7 +400,7 @@
     </aside>
 
     <main class="main">
-        <div class="page">
+        <div class="page @yield('page-class')">
             @if (session('status'))
                 <div class="flash -ok">{{ session('status') }}</div>
             @endif

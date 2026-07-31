@@ -8,7 +8,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 class LinkedInSource implements JobSourceInterface
 {
-    private const MAX_DETAIL_FETCHES = 10;
+    private const MAX_DETAIL_FETCHES = 30;
     private const REQUEST_DELAY_SECONDS = 2;
 
     public function key(): string
@@ -19,20 +19,34 @@ class LinkedInSource implements JobSourceInterface
     public function fetch(array $settings, SourceHttp $http): array
     {
         $keywords = implode(' ', array_slice($settings['search_keywords'] ?? [], 0, 2)) ?: 'PHP Developer';
-        $locations = array_slice($settings['locations'] ?? ['Germany'], 0, 2);
+        $locations = array_values(($settings['locations'] ?? []) ?: ['Germany']);
+        // The guest endpoint throttles hard, so locations go out in small batches
+        // with a long pause between them.
+        $batchSize = max(1, (int) ($settings['linkedin_batch_size'] ?? 2));
+        $batchPause = max(0, (int) ($settings['linkedin_batch_pause'] ?? 15));
 
         $result = [];
-        foreach ($locations as $location) {
+        foreach ($locations as $i => $location) {
+            if ($i > 0 && $i % $batchSize === 0 && $batchPause > 0) {
+                $http->log("пауза {$batchPause} с перед следующей пачкой локаций");
+                sleep($batchPause);
+            }
             $url = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?'
                 . http_build_query(array_filter([
                     'keywords' => $keywords,
-                    'location' => $location,
+                    'location' => LocationCatalog::resolve($location)['name'],
                     'f_TPR' => 'r604800', // posted within last 7 days
                     'f_WT' => ! empty($settings['remote_only']) ? '2' : null,
                     'start' => 0,
                 ]));
             $response = $http->get($url);
             sleep(self::REQUEST_DELAY_SECONDS);
+            if ($response && $response->status() === 429) {
+                $skipped = count($locations) - $i - 1;
+                $http->log("429 от LinkedIn на локации «{$location}», остановка"
+                    . ($skipped > 0 ? ", не опрошено локаций: {$skipped}" : ''));
+                break;
+            }
             if (! $response || ! $response->successful()) {
                 continue;
             }
@@ -97,7 +111,11 @@ class LinkedInSource implements JobSourceInterface
             ->pluck('external_id')
             ->all();
         $new = array_diff_key($jobs, array_flip($known));
+        if ($new === []) {
+            return;
+        }
 
+        $loaded = 0;
         foreach (array_slice($new, 0, self::MAX_DETAIL_FETCHES, preserve_keys: true) as $vacancy) {
             $response = $http->get("https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{$vacancy->externalId}");
             sleep(self::REQUEST_DELAY_SECONDS);
@@ -108,7 +126,13 @@ class LinkedInSource implements JobSourceInterface
             $node = $crawler->filter('.show-more-less-html__markup, .description__text');
             if ($node->count()) {
                 $vacancy->description = trim($node->first()->html());
+                $loaded++;
             }
         }
+
+        // The cap is per run, so say out loud how many were left without a description:
+        // a vacancy scored on its title alone gets a much worse score.
+        $http->log("описания загружены для {$loaded} из " . count($new) . ' новых вакансий'
+            . (count($new) > self::MAX_DETAIL_FETCHES ? ' (лимит ' . self::MAX_DETAIL_FETCHES . ' за прогон)' : ''));
     }
 }

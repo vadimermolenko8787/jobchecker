@@ -23,6 +23,12 @@ class SourceHttp
         return $this->send('GET', $url, $headers);
     }
 
+    /** Write a progress line into the run log, prefixed with the source key. */
+    public function log(string $message): void
+    {
+        $this->run?->appendLog("[{$this->source}] {$message}");
+    }
+
     public function post(string $url, array $headers = [], mixed $body = null): ?Response
     {
         return $this->send('POST', $url, $headers, $body);

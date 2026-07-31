@@ -10,6 +10,8 @@ class IndeedSource implements JobSourceInterface
     // If Indeed rotates it, pull the current one from github.com/speedyapply/JobSpy.
     private const API_KEY = '161092c2017b5bbab13edb12461a62d5a833871e7cad6d9d475304573de67ac8';
 
+    private const REQUEST_DELAY_SECONDS = 1;
+
     public function key(): string
     {
         return 'indeed';
@@ -18,8 +20,39 @@ class IndeedSource implements JobSourceInterface
     public function fetch(array $settings, SourceHttp $http): array
     {
         $what = implode(' ', array_slice($settings['search_keywords'] ?? [], 0, 3)) ?: 'PHP';
-        $where = ($settings['locations'] ?? ['Germany'])[0] ?? 'Germany';
-        $country = strtoupper($settings['indeed_country'] ?? 'DE');
+        $locations = array_values(($settings['locations'] ?? []) ?: ['Germany']);
+
+        $result = [];
+        $skipped = [];
+        foreach ($locations as $i => $entry) {
+            $location = LocationCatalog::resolve($entry);
+            if ($location['indeed'] === null) {
+                $skipped[] = $location['name'];
+                continue;
+            }
+            if ($i > 0) {
+                sleep(self::REQUEST_DELAY_SECONDS);
+            }
+            foreach ($this->fetchLocation($http, $what, $location) as $vacancy) {
+                $result[$vacancy->externalId] ??= $vacancy;
+            }
+        }
+
+        if ($skipped !== []) {
+            $http->log('пропущены локации без кода страны: ' . implode(', ', $skipped));
+        }
+
+        return array_values($result);
+    }
+
+    /**
+     * @param  array{name: string, indeed: ?string, host: ?string}  $location
+     * @return VacancyData[]
+     */
+    private function fetchLocation(SourceHttp $http, string $what, array $location): array
+    {
+        $where = $location['name'];
+        $country = $location['indeed'];
 
         $query = <<<GQL
         query {
@@ -54,10 +87,14 @@ class IndeedSource implements JobSourceInterface
         ], ['query' => $query]);
 
         if (! $response || ! $response->successful()) {
+            // Most often an unsupported country code: Indeed answers 400 for markets
+            // it does not run, and the location would otherwise fail silently.
+            $http->log("«{$where}» ({$country}): " . ($response ? 'HTTP ' . $response->status() : 'запрос не удался'));
+
             return [];
         }
 
-        $host = $country === 'US' ? 'www.indeed.com' : strtolower($country) . '.indeed.com';
+        $host = $location['host'] ?? LocationCatalog::indeedHost($country);
         $result = [];
         foreach ($response->json('data.jobSearch.results') ?? [] as $item) {
             $job = $item['job'] ?? null;

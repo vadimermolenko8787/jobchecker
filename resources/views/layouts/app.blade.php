@@ -179,6 +179,28 @@
         .chip:has(input:checked) { border-color: var(--signal-line); background: var(--signal-dim); color: var(--signal); }
         .chip:has(input:checked) .dot { background: var(--signal); box-shadow: 0 0 0 3px var(--signal-dim); }
 
+        /* multiselect dropdown — without JS it stays a plain chip list */
+        .multiselect { position: relative; }
+        .multiselect .ms-toggle {
+            display: none; width: 100%; font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+            color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-sm);
+            padding: 9px 11px; align-items: center; gap: 10px; transition: border-color .12s, box-shadow .12s;
+        }
+        .multiselect.-js .ms-toggle { display: flex; }
+        .multiselect .ms-toggle:hover { border-color: var(--faint); }
+        .multiselect .ms-toggle:focus-visible { outline: none; border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-dim); }
+        .multiselect .ms-summary { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .multiselect .ms-summary.-empty { color: var(--faint); }
+        .multiselect .ms-caret { color: var(--faint); font-size: 11px; flex: none; transition: transform .12s; }
+        .multiselect.-open .ms-caret { transform: rotate(180deg); }
+        .multiselect.-js .ms-panel {
+            display: none; position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0;
+            max-height: 280px; overflow-y: auto; padding: 12px;
+            background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-sm);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
+        }
+        .multiselect.-js.-open .ms-panel { display: flex; }
+
         /* ---- segmented filter ---- */
         .segment { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; }
         .segment a { padding: 6px 15px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: none; transition: all .12s; }

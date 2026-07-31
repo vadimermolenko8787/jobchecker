@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\Sources\LocationCatalog;
 use App\Services\TelegramNotifier;
 use App\Services\VacancyScorer;
 use Cron\CronExpression;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
 {
@@ -17,7 +19,9 @@ class SettingsController extends Controller
             'schedule_enabled' => ['nullable', 'boolean'],
             'sources' => ['nullable', 'array'],
             'search_keywords' => ['nullable', 'string'],
-            'locations' => ['nullable', 'string'],
+            'locations' => ['nullable', 'array'],
+            'locations.*' => ['string', Rule::in(array_keys(LocationCatalog::LOCATIONS))],
+            'locations_custom' => ['nullable', 'string'],
             'remote_only' => ['nullable', 'boolean'],
             'include_keywords' => ['nullable', 'string'],
             'exclude_keywords' => ['nullable', 'string'],
@@ -34,10 +38,13 @@ class SettingsController extends Controller
             'dou_category' => ['nullable', 'string'],
             'djinni_primary_keyword' => ['nullable', 'string'],
             'justjoin_category' => ['nullable', 'integer'],
-            'indeed_country' => ['nullable', 'string', 'size:2'],
+            'linkedin_batch_size' => ['required', 'integer', 'min:1', 'max:10'],
+            'linkedin_batch_pause' => ['required', 'integer', 'min:0', 'max:300'],
             'telegram_enabled' => ['nullable', 'boolean'],
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
+        ], [
+            'locations.*.in' => 'Локация :input отсутствует в справочнике.',
         ]);
 
         if (! CronExpression::isValidExpression($data['cron_expression'])) {
@@ -61,7 +68,12 @@ class SettingsController extends Controller
             array_combine(array_keys(Setting::DEFAULTS['sources']), array_keys(Setting::DEFAULTS['sources'])),
         ));
         Setting::set('search_keywords', $csv($data['search_keywords'] ?? null));
-        Setting::set('locations', $csv($data['locations'] ?? null));
+        // Catalog picks and free-form entries end up in one flat list of location strings.
+        $locations = array_values(array_unique(array_merge(
+            array_values($data['locations'] ?? []),
+            $csv($data['locations_custom'] ?? null),
+        )));
+        Setting::set('locations', $locations ?: Setting::DEFAULTS['locations']);
         Setting::set('remote_only', (bool) ($data['remote_only'] ?? false));
         Setting::set('include_keywords', $csv($data['include_keywords'] ?? null));
         Setting::set('exclude_keywords', $csv($data['exclude_keywords'] ?? null));
@@ -74,7 +86,8 @@ class SettingsController extends Controller
         Setting::set('dou_category', $data['dou_category'] ?? 'PHP');
         Setting::set('djinni_primary_keyword', $data['djinni_primary_keyword'] ?? 'PHP');
         Setting::set('justjoin_category', (int) ($data['justjoin_category'] ?? 3));
-        Setting::set('indeed_country', strtoupper($data['indeed_country'] ?? 'DE'));
+        Setting::set('linkedin_batch_size', (int) $data['linkedin_batch_size']);
+        Setting::set('linkedin_batch_pause', (int) $data['linkedin_batch_pause']);
         Setting::set('telegram_enabled', (bool) ($data['telegram_enabled'] ?? false));
         Setting::set('telegram_bot_token', trim((string) ($data['telegram_bot_token'] ?? '')));
         Setting::set('telegram_chat_id', trim((string) ($data['telegram_chat_id'] ?? '')));

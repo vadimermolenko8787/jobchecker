@@ -136,6 +136,9 @@
                     @endforeach
                 </div>
 
+                @php($locationLabels = \App\Services\Sources\LocationCatalog::labels())
+                @php($pickedLocations = array_values(array_intersect($settings['locations'], array_keys($locationLabels))))
+                @php($customLocations = array_values(array_diff($settings['locations'], array_keys($locationLabels))))
                 <div class="section-label">Ключевые слова и фильтры</div>
                 <div class="form-grid">
                     <div class="field">
@@ -145,7 +148,22 @@
                     </div>
                     <div class="field">
                         <span class="lab">Локации <span class="faint">(LinkedIn / Indeed)</span></span>
-                        <input type="text" name="locations" value="{{ implode(', ', $settings['locations']) }}">
+                        <div class="multiselect" data-multiselect>
+                            <button type="button" class="ms-toggle" aria-expanded="false" aria-haspopup="true">
+                                <span class="ms-summary"></span><span class="ms-caret">▼</span>
+                            </button>
+                            <div class="ms-panel chip-row">
+                                @foreach ($locationLabels as $value => $label)
+                                    <label class="chip"><input type="checkbox" name="locations[]" value="{{ $value }}" @checked(in_array($value, $pickedLocations, true))><span class="dot"></span>{{ $label }}</label>
+                                @endforeach
+                            </div>
+                        </div>
+                        <span class="help">Поиск идёт по каждой отмеченной локации.</span>
+                    </div>
+                    <div class="field">
+                        <span class="lab">Другие локации <span class="faint">(через запятую)</span></span>
+                        <input type="text" name="locations_custom" value="{{ implode(', ', $customLocations) }}">
+                        <span class="help">Чего нет в списке. Для Indeed добавьте код страны через двоеточие — <code>Tbilisi:GE</code>, иначе локация ищется только на LinkedIn.</span>
                     </div>
                     <div class="field">
                         <span class="lab">Обязательные слова</span>
@@ -204,7 +222,12 @@
                             <div class="field"><span class="lab">Категория DOU</span><input type="text" name="dou_category" value="{{ $settings['dou_category'] }}"></div>
                             <div class="field"><span class="lab">Primary keyword Djinni</span><input type="text" name="djinni_primary_keyword" value="{{ $settings['djinni_primary_keyword'] }}"></div>
                             <div class="field"><span class="lab">Категория justjoin.it <span class="faint">(число, 3 = PHP)</span></span><input type="number" name="justjoin_category" value="{{ $settings['justjoin_category'] }}"></div>
-                            <div class="field"><span class="lab">Страна Indeed <span class="faint">(код)</span></span><input type="text" name="indeed_country" maxlength="2" value="{{ $settings['indeed_country'] }}"></div>
+                            <div class="field"><span class="lab">LinkedIn: локаций в пачке</span><input type="number" name="linkedin_batch_size" min="1" max="10" value="{{ $settings['linkedin_batch_size'] }}" required></div>
+                            <div class="field">
+                                <span class="lab">LinkedIn: пауза между пачками, сек</span>
+                                <input type="number" name="linkedin_batch_pause" min="0" max="300" value="{{ $settings['linkedin_batch_pause'] }}" required>
+                                <span class="help">Защита от 429 на гостевом endpoint.</span>
+                            </div>
                         </div>
                     </div>
                 </details>
@@ -304,6 +327,48 @@
                 logEl.scrollTop = logEl.scrollHeight;
             }
         };
+    })();
+
+    // Turns a chip list into a dropdown; without this it degrades to a plain chip list.
+    (function () {
+        document.querySelectorAll('[data-multiselect]').forEach(function (root) {
+            var toggle = root.querySelector('.ms-toggle');
+            var summary = root.querySelector('.ms-summary');
+            var boxes = Array.prototype.slice.call(root.querySelectorAll('input[type=checkbox]'));
+
+            function render() {
+                var picked = boxes.filter(function (b) { return b.checked; })
+                    .map(function (b) { return b.parentNode.textContent.trim(); });
+                summary.classList.toggle('-empty', picked.length === 0);
+                if (!picked.length) {
+                    summary.textContent = 'Ничего не выбрано';
+                } else if (picked.length > 3) {
+                    summary.textContent = picked.slice(0, 3).join(', ') + ' +' + (picked.length - 3);
+                } else {
+                    summary.textContent = picked.join(', ');
+                }
+            }
+
+            function close() {
+                root.classList.remove('-open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+
+            toggle.addEventListener('click', function () {
+                var open = root.classList.toggle('-open');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            root.addEventListener('change', render);
+            document.addEventListener('click', function (e) {
+                if (!root.contains(e.target)) close();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') close();
+            });
+
+            root.classList.add('-js');
+            render();
+        });
     })();
 </script>
 @endsection

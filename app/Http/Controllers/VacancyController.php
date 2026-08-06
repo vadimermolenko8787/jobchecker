@@ -42,9 +42,16 @@ class VacancyController extends Controller
 
             return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : '';
         };
+        $list = function (string $key) use ($request): array {
+            $value = $request->query($key);
+            $value = is_array($value) ? array_filter($value, fn ($v) => is_string($v) && $v !== '') : [];
+
+            return array_values(array_unique($value));
+        };
         $filters = [
             'q' => $text('q'),
             'company' => $text('company'),
+            'source' => $list('source'),
             'from' => $date('from'),
             'to' => $date('to'),
         ];
@@ -65,6 +72,7 @@ class VacancyController extends Controller
             ->when($status && $status !== 'new', fn ($q) => $q->where('status', $status))
             ->when($filters['q'] !== '', fn ($q) => $q->whereRaw(...$contains('title', $filters['q'])))
             ->when($filters['company'] !== '', fn ($q) => $q->whereRaw(...$contains('company', $filters['company'])))
+            ->when($filters['source'] !== [], fn ($q) => $q->whereIn('source', $filters['source']))
             ->when($filters['from'] !== '', fn ($q) => $q->whereRaw("{$dateColumn} >= ?", [$filters['from'] . ' 00:00:00']))
             ->when($filters['to'] !== '', fn ($q) => $q->whereRaw("{$dateColumn} <= ?", [$filters['to'] . ' 23:59:59']))
             ->orderByRaw(self::SORTABLE[$sort] . ' ' . $dir)
@@ -81,6 +89,9 @@ class VacancyController extends Controller
             'companies' => Vacancy::query()
                 ->whereNotNull('company')->where('company', '!=', '')
                 ->distinct()->orderBy('company')->limit(500)->pluck('company'),
+            'sources' => Vacancy::query()
+                ->where('source', '!=', '')
+                ->distinct()->orderBy('source')->pluck('source'),
             'lastRunId' => $lastRunId,
         ]);
     }

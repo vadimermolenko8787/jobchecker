@@ -202,6 +202,13 @@
             box-shadow: 0 12px 32px rgba(0, 0, 0, .28);
         }
         .multiselect.-js.-open .ms-panel { display: flex; }
+        /* same dropdown inside a table filter cell: compact, and freed from the uppercase
+           th inherits. -fixed because .table-wrap scrolls on x, which per spec turns its
+           overflow-y into auto too, so an absolute panel would be clipped by the table. */
+        .multiselect.-sm .ms-toggle { min-width: 104px; padding: 6px 9px; font-size: 13px; text-transform: none; letter-spacing: normal; }
+        .multiselect.-sm .ms-panel { width: 210px; gap: 6px; padding: 10px; }
+        .multiselect.-sm .ms-panel .chip { padding: 5px 10px; gap: 6px; font-size: 12.5px; text-transform: none; letter-spacing: normal; }
+        .multiselect.-fixed.-js .ms-panel { position: fixed; right: auto; }
 
         /* ---- segmented filter ---- */
         .segment { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; }
@@ -453,6 +460,69 @@
             }).catch(function () {});
         }
         poll(); setInterval(poll, 3000);
+    })();
+
+    // Turns a chip list into a dropdown; without this it degrades to a plain chip list.
+    (function () {
+        document.querySelectorAll('[data-multiselect]').forEach(function (root) {
+            var toggle = root.querySelector('.ms-toggle');
+            var panel = root.querySelector('.ms-panel');
+            var summary = root.querySelector('.ms-summary');
+            var boxes = Array.prototype.slice.call(root.querySelectorAll('input[type=checkbox]'));
+
+            function render() {
+                var picked = boxes.filter(function (b) { return b.checked; })
+                    .map(function (b) { return b.parentNode.textContent.trim(); });
+                summary.classList.toggle('-empty', picked.length === 0);
+                if (!picked.length) {
+                    summary.textContent = root.getAttribute('data-empty') || 'Ничего не выбрано';
+                } else if (picked.length > 3) {
+                    summary.textContent = picked.slice(0, 3).join(', ') + ' +' + (picked.length - 3);
+                } else {
+                    summary.textContent = picked.join(', ');
+                }
+                // The summary ellipsizes in a narrow column, so keep the full list on hover.
+                toggle.title = picked.join(', ');
+            }
+
+            // A fixed panel is positioned by hand; it is opened first, so it has a width by now.
+            function place() {
+                if (!root.classList.contains('-fixed')) return;
+                var rect = toggle.getBoundingClientRect();
+                panel.style.top = (rect.bottom + 6) + 'px';
+                panel.style.left = Math.max(8, Math.min(rect.left, document.documentElement.clientWidth - panel.offsetWidth - 8)) + 'px';
+            }
+
+            function close() {
+                root.classList.remove('-open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+
+            toggle.addEventListener('click', function () {
+                var open = root.classList.toggle('-open');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open) place();
+            });
+            root.addEventListener('change', render);
+            document.addEventListener('click', function (e) {
+                if (!root.contains(e.target)) close();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') close();
+            });
+            // A fixed panel does not follow its toggle on its own. Capture phase, because
+            // scrolling inside .table-wrap does not bubble; scrolling the list itself must
+            // not move it.
+            window.addEventListener('scroll', function (e) {
+                if (root.classList.contains('-open') && !panel.contains(e.target)) place();
+            }, true);
+            window.addEventListener('resize', function () {
+                if (root.classList.contains('-open')) place();
+            });
+
+            root.classList.add('-js');
+            render();
+        });
     })();
 </script>
 @yield('scripts')

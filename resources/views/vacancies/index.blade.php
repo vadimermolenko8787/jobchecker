@@ -97,7 +97,24 @@
                         @endforeach
                     </datalist>
                 </th>
-                <th></th>
+                <th>
+                    {{-- No sources yet means an empty table, and an empty dropdown to open. --}}
+                    @if (count($sources))
+                        {{-- The button is named by its own summary text, so no aria-label here:
+                             it would hide the current selection from screen readers. --}}
+                        <div class="multiselect -sm -fixed" data-multiselect data-empty="источник…">
+                            <button type="button" class="ms-toggle" aria-expanded="false" aria-haspopup="true">
+                                <span class="ms-summary"></span><span class="ms-caret">▼</span>
+                            </button>
+                            <div class="ms-panel chip-row">
+                                @foreach ($sources as $sourceName)
+                                    <label class="chip"><input type="checkbox" form="vac-filters" name="source[]" value="{{ $sourceName }}"
+                                                               @checked(in_array($sourceName, $filters['source'], true))><span class="dot"></span>{{ $sourceName }}</label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </th>
                 <th></th>
                 <th></th>
                 <th>
@@ -178,6 +195,14 @@
 
             fields.forEach(function (field) {
                 var initial = field.value;
+                if (field.type === 'checkbox') {
+                    field.addEventListener('change', function () {
+                        clearTimeout(timer);
+                        // Debounced too: ticking two sources costs one reload, not two.
+                        timer = setTimeout(function () { submit(field); }, 600);
+                    });
+                    return;
+                }
                 if (field.type === 'date') {
                     field.addEventListener('change', function () {
                         if (field.value !== initial) submit(field);
@@ -201,7 +226,14 @@
             } catch (e) {}
             if (saved && saved.name) {
                 var target = fields.filter(function (f) { return f.name === saved.name; })[0];
-                if (target) {
+                // The checkbox itself is invisible inside its chip, and a closed panel would mean
+                // reopening the dropdown for every next source, so restore the open panel instead.
+                var dropdown = target && target.closest('[data-multiselect]');
+                if (dropdown) {
+                    var msToggle = dropdown.querySelector('.ms-toggle');
+                    msToggle.focus();
+                    if (!dropdown.classList.contains('-open')) msToggle.click();
+                } else if (target) {
                     target.focus();
                     if (saved.caret !== null && target.setSelectionRange) {
                         try { target.setSelectionRange(saved.caret, saved.caret); } catch (e) {}

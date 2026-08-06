@@ -328,47 +328,5 @@
             }
         };
     })();
-
-    // Turns a chip list into a dropdown; without this it degrades to a plain chip list.
-    (function () {
-        document.querySelectorAll('[data-multiselect]').forEach(function (root) {
-            var toggle = root.querySelector('.ms-toggle');
-            var summary = root.querySelector('.ms-summary');
-            var boxes = Array.prototype.slice.call(root.querySelectorAll('input[type=checkbox]'));
-
-            function render() {
-                var picked = boxes.filter(function (b) { return b.checked; })
-                    .map(function (b) { return b.parentNode.textContent.trim(); });
-                summary.classList.toggle('-empty', picked.length === 0);
-                if (!picked.length) {
-                    summary.textContent = 'Ничего не выбрано';
-                } else if (picked.length > 3) {
-                    summary.textContent = picked.slice(0, 3).join(', ') + ' +' + (picked.length - 3);
-                } else {
-                    summary.textContent = picked.join(', ');
-                }
-            }
-
-            function close() {
-                root.classList.remove('-open');
-                toggle.setAttribute('aria-expanded', 'false');
-            }
-
-            toggle.addEventListener('click', function () {
-                var open = root.classList.toggle('-open');
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            });
-            root.addEventListener('change', render);
-            document.addEventListener('click', function (e) {
-                if (!root.contains(e.target)) close();
-            });
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') close();
-            });
-
-            root.classList.add('-js');
-            render();
-        });
-    })();
 </script>
 @endsection

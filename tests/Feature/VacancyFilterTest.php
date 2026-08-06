@@ -51,6 +51,44 @@ class VacancyFilterTest extends TestCase
         $response->assertDontSee('Backend Ops');
     }
 
+    public function test_source_filter_keeps_only_the_picked_sources(): void
+    {
+        $this->vacancy(['title' => 'From LinkedIn', 'source' => 'linkedin']);
+        $this->vacancy(['title' => 'From Indeed', 'source' => 'indeed']);
+        $this->vacancy(['title' => 'From Dou', 'source' => 'dou']);
+
+        $single = $this->get('/vacancies?' . http_build_query(['source' => ['linkedin']]));
+
+        $single->assertOk();
+        $single->assertSee('From LinkedIn');
+        $single->assertDontSee('From Indeed');
+        $single->assertSee('1 записей');
+
+        $multiple = $this->get('/vacancies?' . http_build_query(['source' => ['linkedin', 'indeed']]));
+
+        $multiple->assertOk();
+        $multiple->assertSee('From LinkedIn');
+        $multiple->assertSee('From Indeed');
+        $multiple->assertDontSee('From Dou');
+        $multiple->assertSee('2 записей');
+    }
+
+    public function test_source_filter_combines_with_the_other_filters_and_is_carried_over(): void
+    {
+        $this->vacancy(['title' => 'Laravel Dev', 'source' => 'linkedin']);
+        $this->vacancy(['title' => 'Laravel Ops', 'source' => 'dou']);
+        $this->vacancy(['title' => 'Python Dev', 'source' => 'linkedin']);
+
+        $response = $this->get('/vacancies?' . http_build_query(['q' => 'Laravel', 'source' => ['linkedin']]));
+
+        $response->assertOk();
+        $response->assertSee('Laravel Dev');
+        $response->assertDontSee('Laravel Ops');
+        $response->assertDontSee('Python Dev');
+        // Sort headers, status tabs and pagination all keep the picked source.
+        $response->assertSee('source%5B0%5D=linkedin', false);
+    }
+
     public function test_like_wildcards_in_the_query_are_treated_literally(): void
     {
         $this->vacancy(['title' => 'Discount 100% Role']);
@@ -105,6 +143,11 @@ class VacancyFilterTest extends TestCase
         $this->get('/vacancies?from=abc&to=2026-13-99')->assertOk()->assertSee('Still Listed');
         $this->get('/vacancies?sort[]=score')->assertOk()->assertSee('Still Listed');
         $this->get('/vacancies?q[]=x&company[]=y')->assertOk()->assertSee('Still Listed');
+        // The dropdown always sends source[], so a scalar or a nested array is ignored, not applied.
+        $this->get('/vacancies?source=linkedin')->assertOk()->assertSee('Still Listed');
+        $this->get('/vacancies?source[][]=linkedin')->assertOk()->assertSee('Still Listed');
+        // An empty value must not narrow the list down to the rows with an empty source, i.e. none.
+        $this->get('/vacancies?source[]=')->assertOk()->assertSee('Still Listed');
     }
 
     public function test_new_tab_shows_the_latest_run_because_no_row_keeps_the_new_status(): void

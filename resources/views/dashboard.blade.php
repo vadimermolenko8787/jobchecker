@@ -35,6 +35,35 @@
         </div>
     </div>
 
+    {{-- Per-source breakdown: same rows twice, once by volume and once by what actually matched --}}
+    <div class="grid grid-2" style="margin-bottom:20px">
+        @foreach ([
+            ['Вакансии по источникам', 'total', 'var(--info)', 'всего в базе', []],
+            ['Подходящие по источникам', 'matched', 'var(--signal)', 'статус matched', ['status' => 'matched']],
+        ] as [$heading, $field, $color, $hint, $query])
+            @php($max = max(1, (int) $bySource->max($field)))
+            <div class="card">
+                <div class="card-head">
+                    <h3>{{ $heading }}</h3>
+                    <span class="hint">{{ $hint }}</span>
+                </div>
+                <div class="card-body">
+                    @forelse ($bySource as $row)
+                        <div class="src-row">
+                            <a href="{{ route('vacancies.index', $query + ['source' => [$row->source]]) }}" style="text-decoration:none">
+                                <span class="tag">{{ $row->source }}</span>
+                            </a>
+                            <span class="track"><span class="fill" style="width:{{ round($row->$field / $max * 100) }}%;background:{{ $color }}"></span></span>
+                            <span class="sv">{{ $row->$field }}</span>
+                        </div>
+                    @empty
+                        <div class="empty">Вакансий пока нет.</div>
+                    @endforelse
+                </div>
+            </div>
+        @endforeach
+    </div>
+
     {{-- Resume + live run --}}
     <div class="grid grid-2">
         <div class="card">

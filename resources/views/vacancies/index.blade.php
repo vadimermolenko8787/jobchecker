@@ -137,6 +137,8 @@
                     <td style="max-width:320px">
                         <a href="{{ route('vacancies.show', $vacancy) }}" class="v-title">{{ Str::limit($vacancy->title, 72) }}</a>
                         @if ($lastRunId && $vacancy->run_id === $lastRunId)<span class="badge -new" style="margin-left:8px">new</span>@endif
+                        @if ($vacancy->bumped_at)<span class="badge -bumped" style="margin-left:8px"
+                              title="Источник поднял вакансию {{ $vacancy->bumped_at->format('d.m.Y H:i') }}, она заново прошла оценку">↑ поднята</span>@endif
                     </td>
                     <td class="muted">{{ Str::limit($vacancy->company, 30) ?: '—' }}</td>
                     <td><span class="tag">{{ $vacancy->source }}</span></td>

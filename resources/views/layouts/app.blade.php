@@ -98,6 +98,9 @@
         /* ---- cards ---- */
         .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
         .card + .card { margin-top: 20px; }
+        /* Side by side the grid gap already spaces them, and the stacking margin would
+           push the second card down and leave it that much shorter than the first. */
+        .grid > .card + .card { margin-top: 0; }
         .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--line-soft); }
         .card-head h3 { font-size: 15px; letter-spacing: .01em; }
         .card-head .hint { color: var(--faint); font-size: 12.5px; font-family: var(--mono); }
@@ -130,6 +133,11 @@
         .btn-primary { background: var(--signal); border-color: var(--signal); color: #1a1205; }
         .btn-primary:hover { background: var(--signal-strong); border-color: var(--signal-strong); color: #1a1205; }
         [data-theme="light"] .btn-primary { color: #fff; }
+        .btn-ok { background: var(--ok); border-color: var(--ok); color: #06210F; }
+        .btn-ok:hover { background: var(--ok); border-color: var(--ok); color: #06210F; filter: brightness(1.08); }
+        .btn-info { background: var(--info); border-color: var(--info); color: #06182E; }
+        .btn-info:hover { background: var(--info); border-color: var(--info); color: #06182E; filter: brightness(1.08); }
+        [data-theme="light"] .btn-ok, [data-theme="light"] .btn-info { color: #fff; }
         .btn-block { width: 100%; }
         .btn-sm { padding: 6px 11px; font-size: 12.5px; font-weight: 500; border-radius: 7px; }
         .btn-ghost { background: transparent; }
@@ -221,7 +229,7 @@
         .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
         .badge.-matched, .badge.-ok, .badge.-done { color: var(--ok); background: var(--ok-dim); }
         .badge.-new { color: var(--info); background: var(--info-dim); }
-        .badge.-running { color: var(--signal); background: var(--signal-dim); }
+        .badge.-running, .badge.-bumped { color: var(--signal); background: var(--signal-dim); }
         .badge.-running::before { animation: pulse 1.1s ease-in-out infinite; }
         .badge.-rejected, .badge.-neutral, .badge.-skipped { color: var(--neutral); background: var(--neutral-dim); }
         .badge.-failed, .badge.-error { color: var(--danger); background: var(--danger-dim); }
@@ -239,6 +247,13 @@
         .meter.-lg .track { width: 160px; height: 8px; }
         .meter.-lg .val { font-size: 22px; min-width: 34px; }
         .meter.-none .val { color: var(--faint); }
+
+        /* ---- per-source breakdown ---- */
+        .src-row { display: grid; grid-template-columns: 88px 1fr 46px; gap: 12px; align-items: center; }
+        .src-row + .src-row { margin-top: 12px; }
+        .src-row .track { display: block; height: 6px; border-radius: 999px; background: var(--raised-2); overflow: hidden; }
+        .src-row .fill { display: block; height: 100%; border-radius: 999px; min-width: 3px; }
+        .src-row .sv { font-family: var(--mono); font-size: 13px; font-weight: 700; text-align: right; }
 
         /* ---- score rubric breakdown ---- */
         .rubric { display: grid; gap: 12px; margin-top: 18px; }

@@ -13,11 +13,22 @@
                 <div style="min-width:0;flex:1">
                     <div class="stack" style="margin-bottom:10px">
                         <span class="badge -{{ $vacancy->status }}">{{ $vacancy->status }}</span>
+                        @if ($vacancy->bumped_at)
+                            <span class="badge -bumped" title="Источник переопубликовал вакансию, она заново прошла оценку">↑ поднята {{ $vacancy->bumped_at->format('d.m.Y H:i') }}</span>
+                        @endif
                         @if ($vacancy->applied_at)
                             <span class="badge -solid">✓ подано {{ $vacancy->applied_at->format('d.m.Y') }}</span>
                         @endif
                     </div>
-                    <h1 style="font-size:24px;line-height:1.25">{{ $vacancy->title }}</h1>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+                        <h1 style="font-size:24px;line-height:1.25;flex:1;min-width:240px">{{ $vacancy->title }}</h1>
+                        <form method="post" action="{{ route('vacancies.applied', $vacancy) }}" style="flex:none">
+                            @csrf
+                            <button type="submit" class="btn btn-sm {{ $vacancy->applied_at ? 'btn-ghost' : 'btn-ok' }}">
+                                {{ $vacancy->applied_at ? 'Снять отметку о подаче' : '✓ Отметить: подал' }}
+                            </button>
+                        </form>
+                    </div>
                     <div class="stack" style="margin-top:12px;color:var(--muted);font-size:14px">
                         <span>{{ $vacancy->company ?? '—' }}</span>
                         <span class="faint">·</span>
@@ -126,31 +137,30 @@
                 </div>
                 <script>setInterval(function(){location.reload();}, 8000);</script>
             @else
-                <div class="stack">
+                {{-- One column: each generator is its own row, and the language belongs to the
+                     cover letter, so it sits on that button's line. --}}
+                <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start;max-width:560px">
                     <form method="post" action="{{ route('vacancies.generate', [$vacancy, 'resume']) }}">
                         @csrf
-                        <button type="submit" class="btn btn-sm" @unless($hasResume) disabled @endunless>
+                        <button type="submit" class="btn btn-sm btn-info" @unless($hasResume) disabled @endunless>
                             {{ $vacancy->resume_path ? 'Перегенерировать резюме' : 'Сгенерировать резюме' }}
                         </button>
                     </form>
-                    <form method="post" action="{{ route('vacancies.generate', [$vacancy, 'cover_letter']) }}" class="stack" style="gap:8px">
+                    <form method="post" action="{{ route('vacancies.generate', [$vacancy, 'cover_letter']) }}"
+                          style="display:flex;flex-direction:column;gap:8px;align-self:stretch">
                         @csrf
-                        <button type="submit" class="btn btn-sm" @unless($hasResume) disabled @endunless>
-                            {{ $vacancy->cover_letter_path ? 'Перегенерировать cover letter' : 'Сгенерировать cover letter' }}
-                        </button>
-                        <select name="lang" style="width:auto;padding:6px 10px;font-size:12.5px">
-                            @foreach (\App\Services\DocumentGenerator::LANGUAGE_LABELS as $code => $label)
-                                <option value="{{ $code }}" @selected(\App\Models\Setting::get('cover_letter_language') === $code)>{{ $label }}</option>
-                            @endforeach
-                        </select>
+                        <div class="stack" style="gap:8px">
+                            <button type="submit" class="btn btn-sm btn-primary" @unless($hasResume) disabled @endunless>
+                                {{ $vacancy->cover_letter_path ? 'Перегенерировать cover letter' : 'Сгенерировать cover letter' }}
+                            </button>
+                            <select name="lang" style="width:auto;padding:6px 10px;font-size:12.5px">
+                                @foreach (\App\Services\DocumentGenerator::LANGUAGE_LABELS as $code => $label)
+                                    <option value="{{ $code }}" @selected(\App\Models\Setting::get('cover_letter_language') === $code)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         <textarea name="extra_instructions" rows="2" maxlength="2000" style="padding:6px 10px;font-size:12.5px"
                                   placeholder="Дополнительные инструкции (необязательно): на что сделать упор, что не упоминать…">{{ old('extra_instructions') }}</textarea>
-                    </form>
-                    <form method="post" action="{{ route('vacancies.applied', $vacancy) }}">
-                        @csrf
-                        <button type="submit" class="btn btn-sm {{ $vacancy->applied_at ? '' : 'btn-primary' }}">
-                            {{ $vacancy->applied_at ? 'Снять отметку о подаче' : 'Отметить: подал' }}
-                        </button>
                     </form>
                 </div>
                 @unless($hasResume)<div class="faint" style="font-size:12.5px;margin-top:10px">Загрузите базовое резюме на панели, чтобы генерировать документы.</div>@endunless

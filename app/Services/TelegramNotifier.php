@@ -38,6 +38,10 @@ class TelegramNotifier
 
         $lines = ['<b>' . $e($vacancy->title) . '</b>'];
 
+        // Without this a re-posted vacancy arrives a second time and reads as a duplicate.
+        if ($vacancy->bumped_at) {
+            $lines[] = '🔁 Переопубликована источником ' . $e($vacancy->published_at?->format('d.m.Y H:i'));
+        }
         $companyLocation = implode(', ', array_filter([$vacancy->company, $vacancy->location]));
         if ($companyLocation !== '') {
             $lines[] = $e($companyLocation);

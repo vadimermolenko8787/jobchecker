@@ -20,6 +20,11 @@ class DashboardController extends Controller
                 'matched' => Vacancy::query()->where('status', 'matched')->count(),
                 'done' => Vacancy::query()->where('status', 'done')->count(),
             ],
+            'bySource' => Vacancy::query()
+                ->selectRaw("source, COUNT(*) AS total, SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) AS matched")
+                ->groupBy('source')
+                ->orderByDesc('total')
+                ->get(),
         ]);
     }
 }

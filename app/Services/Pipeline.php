@@ -39,14 +39,16 @@ class Pipeline
 
         try {
             $fetched = $this->fetchSources($run, $settings, $stats);
-            $newCount = $this->storeNew($run, $fetched, $settings, $stats);
-            $run->appendLog("Всего получено: " . count($fetched) . ", новых после фильтров: {$newCount}");
+            $reposted = $this->storeNew($run, $fetched, $settings, $stats);
+            $run->appendLog("Всего получено: " . count($fetched) . ", новых после фильтров: {$stats['new']}"
+                . ($stats['bumped'] ? ", поднято повторно: {$stats['bumped']}, из них в Telegram: " . $reposted->count() : ''));
 
             if (! $resume) {
                 $run->appendLog('Резюме не загружено — scoring пропущен.');
             } else {
                 $matched = $this->scoreNew($run, $resume, $settings, $stats);
-                $this->notifyMatched($run, $matched, $settings, $stats);
+                // Reposts keep their old verdict, so they join the notification without scoring.
+                $this->notifyMatched($run, $matched->merge($reposted), $settings, $stats);
                 $this->researchCompanies($run, $matched, $settings, $stats);
             }
 
@@ -87,12 +89,17 @@ class Pipeline
         return $all;
     }
 
-    /** @param VacancyData[] $fetched */
-    private function storeNew(Run $run, array $fetched, array $settings, array &$stats): int
+    /**
+     * @param  VacancyData[]  $fetched
+     * @return Collection<int, Vacancy> переопубликованные вакансии, которые стоит отправить в Telegram
+     */
+    private function storeNew(Run $run, array $fetched, array $settings, array &$stats): Collection
     {
         $include = array_filter(array_map('mb_strtolower', $settings['include_keywords'] ?? []));
         $exclude = array_filter(array_map('mb_strtolower', $settings['exclude_keywords'] ?? []));
+        $reposted = collect();
         $new = 0;
+        $bumped = 0;
 
         foreach ($fetched as $item) {
             $haystack = mb_strtolower($item->title . ' ' . strip_tags((string) $item->description));
@@ -121,12 +128,56 @@ class Pipeline
             );
             if ($vacancy->wasRecentlyCreated) {
                 $new++;
+
+                continue;
+            }
+            if (! $this->bump($run, $vacancy, $item)) {
+                continue;
+            }
+            $bumped++;
+            if ($this->worthReposting($vacancy)) {
+                $reposted->push($vacancy);
             }
         }
 
         $stats['new'] = $new;
+        $stats['bumped'] = $bumped;
 
-        return $new;
+        return $reposted;
+    }
+
+    /**
+     * Boards refresh pubDate when a recruiter re-posts an old vacancy: it is the same row
+     * with the same text, so the old verdict still stands and nothing is re-scored. It only
+     * moves back to the top by date. The description is left alone too: sources like
+     * LinkedIn only load it for rows they do not know yet, and would overwrite it with null.
+     */
+    private function bump(Run $run, Vacancy $vacancy, VacancyData $item): bool
+    {
+        if ($item->publishedAt === null
+            || $vacancy->published_at === null
+            || ! $item->publishedAt->greaterThan($vacancy->published_at)) {
+            return false;
+        }
+
+        $vacancy->update([
+            'published_at' => $item->publishedAt,
+            'bumped_at' => now(),
+            'run_id' => $run->id,
+        ]);
+        $run->appendLog("[{$vacancy->id}] поднята источником на {$item->publishedAt->format('d.m.Y H:i')}"
+            . ", статус {$vacancy->status} без пересчёта");
+
+        return true;
+    }
+
+    /**
+     * A repost is worth a message only when the vacancy already passed scoring and the user
+     * has not applied yet. One still waiting to be scored is left to scoreNew().
+     */
+    private function worthReposting(Vacancy $vacancy): bool
+    {
+        return in_array($vacancy->status, ['matched', 'done'], true) && $vacancy->applied_at === null;
     }
 
     private function containsAny(string $haystack, array $needles): bool

@@ -12,6 +12,13 @@ class IndeedSource implements JobSourceInterface
 
     private const REQUEST_DELAY_SECONDS = 1;
 
+    /**
+     * Indeed ANDs the terms in `what`, so each extra keyword narrows the search: three
+     * ("PHP Laravel Yii2") demand all of them in one ad and return almost nothing, while
+     * two fill the whole limit with on-stack results. This matches LinkedInSource.
+     */
+    private const KEYWORD_LIMIT = 2;
+
     public function key(): string
     {
         return 'indeed';
@@ -19,7 +26,7 @@ class IndeedSource implements JobSourceInterface
 
     public function fetch(array $settings, SourceHttp $http): array
     {
-        $what = implode(' ', array_slice($settings['search_keywords'] ?? [], 0, 3)) ?: 'PHP';
+        $what = implode(' ', array_slice($settings['search_keywords'] ?? [], 0, self::KEYWORD_LIMIT)) ?: 'PHP';
         $locations = array_values(($settings['locations'] ?? []) ?: ['Germany']);
 
         $result = [];

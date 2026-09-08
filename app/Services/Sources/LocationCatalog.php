@@ -33,7 +33,8 @@ class LocationCatalog
         'Finland' => ['label' => 'Финляндия', 'indeed' => 'FI'],
         'Czechia' => ['label' => 'Чехия', 'indeed' => 'CZ'],
         'Romania' => ['label' => 'Румыния', 'indeed' => 'RO'],
-        'Estonia' => ['label' => 'Эстония', 'indeed' => 'EE'],
+        // Indeed has no Estonian site: EE answers 400, so the location is LinkedIn-only.
+        'Estonia' => ['label' => 'Эстония', 'indeed' => null],
         'Lithuania' => ['label' => 'Литва', 'indeed' => 'LT'],
         'Latvia' => ['label' => 'Латвия', 'indeed' => 'LV'],
         'Luxembourg' => ['label' => 'Люксембург', 'indeed' => 'LU'],

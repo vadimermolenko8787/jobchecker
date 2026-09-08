@@ -13,6 +13,7 @@ use App\Services\Sources\IndeedSource;
 use App\Services\Sources\JobSourceInterface;
 use App\Services\Sources\JustJoinSource;
 use App\Services\Sources\LinkedInSource;
+use App\Services\Sources\PracujSource;
 use App\Services\Sources\SourceHttp;
 use App\Services\Sources\VacancyData;
 use Illuminate\Support\Collection;
@@ -65,7 +66,7 @@ class Pipeline
     private function fetchSources(Run $run, array $settings, array &$stats): array
     {
         /** @var JobSourceInterface[] $sources */
-        $sources = [new DouSource, new DjinniSource, new JustJoinSource, new LinkedInSource, new IndeedSource];
+        $sources = [new DouSource, new DjinniSource, new JustJoinSource, new LinkedInSource, new IndeedSource, new PracujSource];
         $enabled = $settings['sources'] ?? [];
         $all = [];
 
@@ -83,6 +84,9 @@ class Pipeline
             } catch (\Throwable $e) {
                 $stats['errors'][$key] = $e->getMessage();
                 $run->appendLog("[{$key}] ошибка: {$e->getMessage()}");
+                // Sources swallow ordinary bad responses themselves, so an exception here
+                // means the source is broken and silently returning nothing otherwise.
+                $this->alert($run, $settings, "⚠️ Источник {$key} не отработал: {$e->getMessage()}");
             }
         }
 
@@ -361,6 +365,29 @@ class Pipeline
 
         $run->appendLog("Отправлено в Telegram: {$sent}/{$matched->count()}");
         $stats['notified'] = $sent;
+    }
+
+    /**
+     * A one-off warning to the same Telegram chat the vacancies go to. It must never
+     * take the run down with it, so a misconfigured or unreachable bot only gets logged.
+     */
+    private function alert(Run $run, array $settings, string $text): void
+    {
+        $token = trim((string) ($settings['telegram_bot_token'] ?? ''));
+        $chatId = trim((string) ($settings['telegram_chat_id'] ?? ''));
+        if (empty($settings['telegram_enabled']) || $token === '' || $chatId === '') {
+            return;
+        }
+
+        try {
+            // sendText posts with parse_mode=HTML, and the text carries a third-party
+            // string (the host a broken source reports), so it is escaped like
+            // TelegramNotifier::formatMessage() escapes everything it interpolates.
+            $this->telegram->sendText($token, $chatId, htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
+        } catch (\Throwable $e) {
+            // A connection error carries the full request URL, and the token sits in it.
+            $run->appendLog('Алерт не отправлен: ' . str_replace($token, '***', $e->getMessage()));
+        }
     }
 
     /** @param Collection<int, Vacancy> $matched */

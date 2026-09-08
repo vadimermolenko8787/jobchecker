@@ -160,7 +160,7 @@
 
                 <div class="section-label">Источники</div>
                 <div class="chip-row">
-                    @foreach (['dou' => 'dou.ua', 'djinni' => 'djinni.co', 'justjoin' => 'justjoin.it', 'linkedin' => 'LinkedIn', 'indeed' => 'Indeed'] as $key => $label)
+                    @foreach (['dou' => 'dou.ua', 'djinni' => 'djinni.co', 'justjoin' => 'justjoin.it', 'pracuj' => 'it.pracuj.pl', 'linkedin' => 'LinkedIn', 'indeed' => 'Indeed'] as $key => $label)
                         <label class="chip"><input type="checkbox" name="sources[{{ $key }}]" value="1" @checked($settings['sources'][$key] ?? false)><span class="dot"></span>{{ $label }}</label>
                     @endforeach
                 </div>
@@ -251,6 +251,20 @@
                             <div class="field"><span class="lab">Категория DOU</span><input type="text" name="dou_category" value="{{ $settings['dou_category'] }}"></div>
                             <div class="field"><span class="lab">Primary keyword Djinni</span><input type="text" name="djinni_primary_keyword" value="{{ $settings['djinni_primary_keyword'] }}"></div>
                             <div class="field"><span class="lab">Категория justjoin.it <span class="faint">(число, 3 = PHP)</span></span><input type="number" name="justjoin_category" value="{{ $settings['justjoin_category'] }}"></div>
+                            <div class="field">
+                                <span class="lab">Категории it.pracuj.pl</span>
+                                <div class="multiselect" data-multiselect data-empty="Оба IT-раздела">
+                                    <button type="button" class="ms-toggle" aria-expanded="false" aria-haspopup="true">
+                                        <span class="ms-summary"></span><span class="ms-caret">▼</span>
+                                    </button>
+                                    <div class="ms-panel chip-row">
+                                        @foreach (\App\Services\Sources\PracujSource::CATEGORIES as $code => $label)
+                                            <label class="chip"><input type="checkbox" name="pracuj_categories[]" value="{{ $code }}" @checked(in_array((string) $code, array_map('strval', $settings['pracuj_categories'] ?? []), true))><span class="dot"></span>{{ $label }}</label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <span class="help">Поиск идёт по каждой отмеченной категории. Ничего не отмечено — оба IT-раздела целиком.</span>
+                            </div>
                             <div class="field"><span class="lab">LinkedIn: локаций в пачке</span><input type="number" name="linkedin_batch_size" min="1" max="10" value="{{ $settings['linkedin_batch_size'] }}" required></div>
                             <div class="field">
                                 <span class="lab">LinkedIn: пауза между пачками, сек</span>

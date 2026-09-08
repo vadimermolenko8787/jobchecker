@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Services\Sources\LocationCatalog;
+use App\Services\Sources\PracujSource;
 use App\Services\TelegramNotifier;
 use App\Services\VacancyScorer;
 use Cron\CronExpression;
@@ -38,6 +39,8 @@ class SettingsController extends Controller
             'dou_category' => ['nullable', 'string'],
             'djinni_primary_keyword' => ['nullable', 'string'],
             'justjoin_category' => ['nullable', 'integer'],
+            'pracuj_categories' => ['nullable', 'array'],
+            'pracuj_categories.*' => ['string', Rule::in(array_keys(PracujSource::CATEGORIES))],
             'linkedin_batch_size' => ['required', 'integer', 'min:1', 'max:10'],
             'linkedin_batch_pause' => ['required', 'integer', 'min:0', 'max:300'],
             'telegram_enabled' => ['nullable', 'boolean'],
@@ -45,6 +48,7 @@ class SettingsController extends Controller
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
         ], [
             'locations.*.in' => 'Локация :input отсутствует в справочнике.',
+            'pracuj_categories.*.in' => 'Категория :input отсутствует в справочнике it.pracuj.pl.',
         ]);
 
         if (! CronExpression::isValidExpression($data['cron_expression'])) {
@@ -86,6 +90,7 @@ class SettingsController extends Controller
         Setting::set('dou_category', $data['dou_category'] ?? 'PHP');
         Setting::set('djinni_primary_keyword', $data['djinni_primary_keyword'] ?? 'PHP');
         Setting::set('justjoin_category', (int) ($data['justjoin_category'] ?? 3));
+        Setting::set('pracuj_categories', array_values($data['pracuj_categories'] ?? []) ?: Setting::DEFAULTS['pracuj_categories']);
         Setting::set('linkedin_batch_size', (int) $data['linkedin_batch_size']);
         Setting::set('linkedin_batch_pause', (int) $data['linkedin_batch_pause']);
         Setting::set('telegram_enabled', (bool) ($data['telegram_enabled'] ?? false));

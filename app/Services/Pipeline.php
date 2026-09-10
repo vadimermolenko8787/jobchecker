@@ -353,17 +353,32 @@ class Pipeline
 
         $run->appendLog('Отправка в Telegram: ' . $matched->count() . ' вакансий...');
         $sent = 0;
+        $skipped = 0;
+        // The same job sits on several boards under different external ids, so the chat would
+        // get it once per source. One message a day per job is enough, whoever posted it.
+        $sentToday = Vacancy::query()->where('notified_at', '>=', today())->get(['company', 'title'])
+            ->mapWithKeys(fn (Vacancy $v) => [$v->duplicateKey() => true])->all();
 
         foreach ($matched as $vacancy) {
+            $key = $vacancy->duplicateKey();
+            if (isset($sentToday[$key])) {
+                $run->appendLog("[{$vacancy->id}] уже отправлялась сегодня, {$vacancy->source} пропущен");
+                $skipped++;
+
+                continue;
+            }
             try {
                 $this->telegram->sendVacancy($token, $chatId, $vacancy);
+                $vacancy->update(['notified_at' => now()]);
+                $sentToday[$key] = true;
                 $sent++;
             } catch (\Throwable $e) {
                 $run->appendLog("[{$vacancy->id}] Telegram не отправлен: {$e->getMessage()}");
             }
         }
 
-        $run->appendLog("Отправлено в Telegram: {$sent}/{$matched->count()}");
+        $run->appendLog("Отправлено в Telegram: {$sent}/{$matched->count()}"
+            . ($skipped ? ", дублей за сегодня пропущено: {$skipped}" : ''));
         $stats['notified'] = $sent;
     }
 

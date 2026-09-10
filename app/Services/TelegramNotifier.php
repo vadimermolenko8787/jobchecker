@@ -46,6 +46,7 @@ class TelegramNotifier
         if ($companyLocation !== '') {
             $lines[] = $e($companyLocation);
         }
+        $lines[] = '🌐 Источник: ' . $e($vacancy->source);
         if ($vacancy->salary) {
             $lines[] = '💰 ' . $e($vacancy->salary);
         }

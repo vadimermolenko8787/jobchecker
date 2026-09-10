@@ -13,7 +13,9 @@ class JobsSearch extends Command
 
     public function handle(Pipeline $pipeline): int
     {
-        if (Run::query()->where('status', 'running')->where('started_at', '>', now()->subHours(2))->exists()) {
+        $this->closeStaleRuns();
+
+        if (Run::active()) {
             $this->warn('Активный запуск уже выполняется, выходим.');
 
             return self::FAILURE;
@@ -35,6 +37,21 @@ class JobsSearch extends Command
             $this->error("Run #{$run->id} failed: {$e->getMessage()}");
 
             return self::FAILURE;
+        }
+    }
+
+    /**
+     * A run killed from outside, by the machine sleeping mid-run or by a reboot, never reaches
+     * its own catch block: the row keeps status 'running' forever, the interface keeps showing
+     * a live search and the start button stays disabled. Nothing can revive such a run, so the
+     * next start is what closes it.
+     */
+    private function closeStaleRuns(): void
+    {
+        foreach (Run::stale() as $run) {
+            $run->appendLog('Запуск прерван извне (сон машины или перезагрузка), закрыт при следующем старте.');
+            $run->update(['status' => 'failed', 'finished_at' => now()]);
+            $this->warn("Запуск #{$run->id} висел в running и помечен failed.");
         }
     }
 }

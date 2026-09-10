@@ -15,6 +15,8 @@ try {
 if ($enabled && $expression !== '') {
     Schedule::command('jobs:search --trigger=cron')
         ->cron($expression)
-        ->withoutOverlapping()
+        // A killed process keeps this lock, and the default 24 hours would silence the search
+        // for a whole day. Four hours still covers any realistic run.
+        ->withoutOverlapping(240)
         ->runInBackground();
 }

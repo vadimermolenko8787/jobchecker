@@ -137,7 +137,9 @@
         .btn-ok:hover { background: var(--ok); border-color: var(--ok); color: #06210F; filter: brightness(1.08); }
         .btn-info { background: var(--info); border-color: var(--info); color: #06182E; }
         .btn-info:hover { background: var(--info); border-color: var(--info); color: #06182E; filter: brightness(1.08); }
-        [data-theme="light"] .btn-ok, [data-theme="light"] .btn-info { color: #fff; }
+        .btn-danger { background: var(--danger); border-color: var(--danger); color: #2A0708; }
+        .btn-danger:hover { background: var(--danger); border-color: var(--danger); color: #2A0708; filter: brightness(1.08); }
+        [data-theme="light"] .btn-ok, [data-theme="light"] .btn-info, [data-theme="light"] .btn-danger { color: #fff; }
         .btn-block { width: 100%; }
         .btn-sm { padding: 6px 11px; font-size: 12.5px; font-weight: 500; border-radius: 7px; }
         .btn-ghost { background: transparent; }
@@ -231,7 +233,7 @@
         .badge.-new { color: var(--info); background: var(--info-dim); }
         .badge.-running, .badge.-bumped { color: var(--signal); background: var(--signal-dim); }
         .badge.-running::before { animation: pulse 1.1s ease-in-out infinite; }
-        .badge.-rejected, .badge.-neutral, .badge.-skipped { color: var(--neutral); background: var(--neutral-dim); }
+        .badge.-rejected, .badge.-neutral, .badge.-skipped, .badge.-cancelled { color: var(--neutral); background: var(--neutral-dim); }
         .badge.-failed, .badge.-error { color: var(--danger); background: var(--danger-dim); }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
         .badge.-solid { color: #1a1205; background: var(--ok); border-color: var(--ok); }
@@ -398,6 +400,13 @@
                     Запустить поиск
                 </button>
             </form>
+            <form method="post" action="{{ route('run.stop') }}" data-run-stop style="display:none;margin-top:8px">
+                @csrf
+                <button type="submit" class="btn btn-danger btn-block">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                    Остановить
+                </button>
+            </form>
             <div id="side-run-status" class="mono" style="font-size:12px;color:var(--faint);text-align:center;min-height:16px">
                 @if($sidebarLatestRun)
                     посл. запуск #{{ $sidebarLatestRun->id }} · {{ $sidebarLatestRun->status }}
@@ -455,6 +464,7 @@
     (function () {
         var statusEl = document.getElementById('side-run-status');
         var btn = document.getElementById('side-run-btn');
+        var stopForms = document.querySelectorAll('[data-run-stop]');
         var url = @json(route('runs.latest'));
         var wasRunning = false;
         window.__jcOnRun = window.__jcOnRun || function () {};
@@ -469,6 +479,7 @@
                     statusEl.style.color = running ? 'var(--signal)' : 'var(--faint)';
                 }
                 if (btn && !btn.hasAttribute('data-noresume')) btn.disabled = running;
+                stopForms.forEach(function (form) { form.style.display = running ? '' : 'none'; });
                 window.__jcOnRun(run, running, wasRunning);
                 if (wasRunning && !running) location.reload();
                 wasRunning = running;

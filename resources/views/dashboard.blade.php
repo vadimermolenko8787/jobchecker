@@ -129,6 +129,14 @@
                     </button>
                     @unless($resume)<div class="faint" style="font-size:12.5px;text-align:center;margin-top:8px">Сначала загрузите резюме.</div>@endunless
                 </form>
+                <form method="post" action="{{ route('run.stop') }}" data-run-stop style="display:none;margin-top:10px">
+                    @csrf
+                    <button type="submit" class="btn btn-danger btn-block">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                        Остановить поиск
+                    </button>
+                    <div class="faint" style="font-size:12.5px;text-align:center;margin-top:8px">Запуск завершится после текущего шага, уже оценённые вакансии сохранятся.</div>
+                </form>
                 <div id="run-status" class="mono" style="font-size:13px;color:var(--muted);margin-top:14px"></div>
                 <pre class="log" id="run-log" style="display:none;margin-top:12px"></pre>
             </div>

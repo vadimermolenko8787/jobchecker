@@ -13,6 +13,7 @@ Route::post('/settings', [SettingsController::class, 'update'])->name('settings.
 Route::post('/settings/telegram-test', [SettingsController::class, 'telegramTest'])->name('settings.telegram-test');
 
 Route::post('/run', [RunController::class, 'start'])->name('run.start');
+Route::post('/run/stop', [RunController::class, 'stop'])->name('run.stop');
 Route::get('/runs/latest', [RunController::class, 'latest'])->name('runs.latest');
 Route::get('/runs/{run}', [RunController::class, 'show'])->name('runs.show');
 

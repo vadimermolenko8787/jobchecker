@@ -53,8 +53,9 @@ class Pipeline
                 $this->researchCompanies($run, $matched, $settings, $stats);
             }
 
-            $run->update(['status' => 'ok', 'stats' => $stats, 'finished_at' => now()]);
-            $run->appendLog('Готово.');
+            $stopped = $run->stopRequested();
+            $run->update(['status' => $stopped ? 'cancelled' : 'ok', 'stats' => $stats, 'finished_at' => now()]);
+            $run->appendLog($stopped ? 'Остановлено по запросу.' : 'Готово.');
         } catch (\Throwable $e) {
             $run->appendLog('ОШИБКА: ' . $e->getMessage());
             $run->update(['status' => 'failed', 'stats' => $stats, 'finished_at' => now()]);
@@ -71,6 +72,9 @@ class Pipeline
         $all = [];
 
         foreach ($sources as $source) {
+            if ($this->stopped($run, 'остальные источники')) {
+                break;
+            }
             $key = $source->key();
             if (empty($enabled[$key])) {
                 $run->appendLog("[{$key}] выключен, пропускаю");
@@ -212,6 +216,9 @@ class Pipeline
         $toRecheck = [];
 
         foreach ($pending->chunk(self::SCORE_BATCH_SIZE) as $batch) {
+            if ($this->stopped($run, 'остаток скоринга')) {
+                break;
+            }
             try {
                 $results = $this->scorer->scoreBatch($resume, $batch, $knownLanguages);
             } catch (\Throwable $e) {
@@ -243,6 +250,9 @@ class Pipeline
         }
 
         foreach ($toRecheck as $item) {
+            if ($this->stopped($run, 'остаток перепроверок')) {
+                break;
+            }
             /** @var Vacancy $vacancy */
             $vacancy = $item['vacancy'];
             $runs = [['score' => $item['score'], 'result' => $item['result']]];
@@ -405,6 +415,22 @@ class Pipeline
         }
     }
 
+    /**
+     * Checkpoint for a stop requested from the web: it is checked between items, so whatever
+     * is in flight (a source fetch, a Claude call) finishes first and the run ends within one
+     * item rather than instantly. Notification is deliberately left outside this: a vacancy
+     * that already got its verdict here is never revisited, so its message must still go out.
+     */
+    private function stopped(Run $run, string $skipped): bool
+    {
+        if (! $run->stopRequested()) {
+            return false;
+        }
+        $run->appendLog("Остановка по запросу, пропускаем: {$skipped}");
+
+        return true;
+    }
+
     /** @param Collection<int, Vacancy> $matched */
     private function researchCompanies(Run $run, Collection $matched, array $settings, array &$stats): void
     {
@@ -428,6 +454,9 @@ class Pipeline
         $researched = 0;
 
         foreach ($names as $name) {
+            if ($this->stopped($run, 'остаток исследований')) {
+                break;
+            }
             $company = Company::firstOrCreateForName($name);
             if ($this->researcher->isFresh($company)) {
                 $run->appendLog("[{$company->name}] кэш свежий, пропускаю");

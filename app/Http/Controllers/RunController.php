@@ -8,7 +8,7 @@ class RunController extends Controller
 {
     public function start()
     {
-        if (Run::query()->where('status', 'running')->where('started_at', '>', now()->subHours(2))->exists()) {
+        if (Run::active()) {
             return back()->with('error', 'Поиск уже выполняется.');
         }
 
@@ -17,6 +17,19 @@ class RunController extends Controller
         exec("nohup {$php} {$artisan} jobs:search --trigger=manual > /dev/null 2>&1 &");
 
         return back()->with('status', 'Поиск запущен в фоне.');
+    }
+
+    public function stop()
+    {
+        $run = Run::query()->where('status', 'running')->latest('id')->first();
+        if (! $run) {
+            return back()->with('error', 'Активного поиска нет.');
+        }
+
+        // Only the flag is raised here, the search process itself ends the run: see Run::requestStop().
+        $run->requestStop();
+
+        return back()->with('status', 'Остановка запрошена, поиск завершится после текущего шага.');
     }
 
     public function latest()

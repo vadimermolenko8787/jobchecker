@@ -364,13 +364,24 @@ class Pipeline
         $run->appendLog('Отправка в Telegram: ' . $matched->count() . ' вакансий...');
         $sent = 0;
         $skipped = 0;
+        $muted = 0;
         // The same job sits on several boards under different external ids, so the chat would
         // get it once per source. One message a day per job is enough, whoever posted it.
         $sentToday = Vacancy::query()->where('notified_at', '>=', today())->get(['company', 'title'])
             ->mapWithKeys(fn (Vacancy $v) => [$v->duplicateKey() => true])->all();
+        // The mute button marks a row, but silences the job behind it: its copies on the other
+        // boards are the same vacancy and must stay quiet too.
+        $mutedJobs = Vacancy::query()->whereNotNull('muted_at')->get(['company', 'title'])
+            ->mapWithKeys(fn (Vacancy $v) => [$v->duplicateKey() => true])->all();
 
         foreach ($matched as $vacancy) {
             $key = $vacancy->duplicateKey();
+            if (isset($mutedJobs[$key])) {
+                $run->appendLog("[{$vacancy->id}] заглушена кнопкой «не присылать», пропущена");
+                $muted++;
+
+                continue;
+            }
             if (isset($sentToday[$key])) {
                 $run->appendLog("[{$vacancy->id}] уже отправлялась сегодня, {$vacancy->source} пропущен");
                 $skipped++;
@@ -388,7 +399,8 @@ class Pipeline
         }
 
         $run->appendLog("Отправлено в Telegram: {$sent}/{$matched->count()}"
-            . ($skipped ? ", дублей за сегодня пропущено: {$skipped}" : ''));
+            . ($skipped ? ", дублей за сегодня пропущено: {$skipped}" : '')
+            . ($muted ? ", заглушённых пропущено: {$muted}" : ''));
         $stats['notified'] = $sent;
     }
 

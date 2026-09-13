@@ -23,6 +23,7 @@ class VacancyController extends Controller
         'status' => 'status',
         'date' => 'COALESCE(published_at, created_at)',
         'applied' => 'applied_at',
+        'muted' => 'muted_at',
     ];
 
     public function index(Request $request)
@@ -126,6 +127,15 @@ class VacancyController extends Controller
         return back()->with('status', $vacancy->applied_at
             ? "Отмечено: подано {$vacancy->applied_at->format('d.m.Y H:i')}."
             : 'Отметка о подаче снята.');
+    }
+
+    public function toggleMuted(Vacancy $vacancy)
+    {
+        $vacancy->muteJob($vacancy->muted_at === null);
+
+        return back()->with('status', $vacancy->muted_at
+            ? 'Больше не присылаю эту вакансию в Telegram.'
+            : 'Вакансия снова сможет приходить в Telegram.');
     }
 
     public function generate(Request $request, Vacancy $vacancy, string $doc)

@@ -19,15 +19,27 @@
                         @if ($vacancy->applied_at)
                             <span class="badge -solid">✓ подано {{ $vacancy->applied_at->format('d.m.Y') }}</span>
                         @endif
+                        @if ($vacancy->muted_at)
+                            <span class="badge -neutral" title="Эта вакансия не уходит в Telegram, включая её копии с других источников">🔕 не слать в Telegram</span>
+                        @endif
                     </div>
                     <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
                         <h1 style="font-size:24px;line-height:1.25;flex:1;min-width:240px">{{ $vacancy->title }}</h1>
-                        <form method="post" action="{{ route('vacancies.applied', $vacancy) }}" style="flex:none">
-                            @csrf
-                            <button type="submit" class="btn btn-sm {{ $vacancy->applied_at ? 'btn-ghost' : 'btn-ok' }}">
-                                {{ $vacancy->applied_at ? 'Снять отметку о подаче' : '✓ Отметить: подал' }}
-                            </button>
-                        </form>
+                        <div class="stack" style="flex:none">
+                            <form method="post" action="{{ route('vacancies.muted', $vacancy) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm {{ $vacancy->muted_at ? 'btn-ghost' : '' }}"
+                                        title="Вакансия и её копии с других источников не будут приходить в Telegram">
+                                    {{ $vacancy->muted_at ? '🔔 Присылать в Telegram' : '🔕 Не присылать в Telegram' }}
+                                </button>
+                            </form>
+                            <form method="post" action="{{ route('vacancies.applied', $vacancy) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm {{ $vacancy->applied_at ? 'btn-ghost' : 'btn-ok' }}">
+                                    {{ $vacancy->applied_at ? 'Снять отметку о подаче' : '✓ Отметить: подал' }}
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     <div class="stack" style="margin-top:12px;color:var(--muted);font-size:14px">
                         <span>{{ $vacancy->company ?? '—' }}</span>

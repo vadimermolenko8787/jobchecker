@@ -58,7 +58,7 @@
         $columns = [
             'score' => 'Score', 'title' => 'Вакансия', 'company' => 'Компания',
             'source' => 'Источник', 'location' => 'Локация', 'status' => 'Статус',
-            'date' => 'Дата', 'applied' => 'Подача',
+            'date' => 'Дата', 'applied' => 'Подача', 'muted' => 'Telegram',
         ];
     @endphp
 
@@ -128,6 +128,7 @@
                     </div>
                 </th>
                 <th></th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
@@ -155,9 +156,18 @@
                             </form>
                         @endif
                     </td>
+                    <td class="nowrap">
+                        <form method="post" action="{{ route('vacancies.muted', $vacancy) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-sm {{ $vacancy->muted_at ? 'btn-ghost' : '' }}"
+                                    title="{{ $vacancy->muted_at ? 'Снова присылать вакансию в Telegram' : 'Не присылать эту вакансию в Telegram' }}">
+                                {{ $vacancy->muted_at ? '🔔 Вернуть' : '🔕 Не слать' }}
+                            </button>
+                        </form>
+                    </td>
                 </tr>
             @empty
-                <tr><td colspan="8"><div class="empty">
+                <tr><td colspan="9"><div class="empty">
                     @if ($activeFilters)
                         Ничего не найдено по заданным фильтрам.
                     @else

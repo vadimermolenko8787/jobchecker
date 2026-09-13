@@ -118,6 +118,39 @@ class TelegramNotifyTest extends TestCase
         $this->assertCount(2, $this->sentTexts());
     }
 
+    public function test_a_muted_vacancy_is_not_sent(): void
+    {
+        $vacancy = $this->vacancy(['muted_at' => now()]);
+
+        $stats = $this->notify([$vacancy]);
+
+        $this->assertSame(0, $stats['notified']);
+        $this->assertSame([], $this->sentTexts());
+        $this->assertNull($vacancy->refresh()->notified_at);
+    }
+
+    public function test_muting_one_board_silences_the_same_job_on_the_others(): void
+    {
+        $this->vacancy(['source' => 'dou', 'muted_at' => now()]);
+        $copy = $this->vacancy(['source' => 'linkedin', 'title' => 'php  Developer', 'company' => 'acme']);
+
+        $stats = $this->notify([$copy]);
+
+        $this->assertSame(0, $stats['notified']);
+        $this->assertSame([], $this->sentTexts());
+    }
+
+    public function test_muting_one_job_leaves_the_others_alone(): void
+    {
+        $this->vacancy(['company' => 'Acme', 'muted_at' => now()]);
+        $globex = $this->vacancy(['source' => 'djinni', 'company' => 'Globex']);
+
+        $stats = $this->notify([$globex]);
+
+        $this->assertSame(1, $stats['notified']);
+        $this->assertNotNull($globex->refresh()->notified_at);
+    }
+
     public function test_a_failed_send_leaves_the_job_open_for_the_next_run(): void
     {
         $this->telegramStatus = 400;

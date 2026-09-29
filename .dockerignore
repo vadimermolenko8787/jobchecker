@@ -1,0 +1,11 @@
+.git
+.idea
+.env
+.env.*
+!.env.example
+vendor
+node_modules
+storage
+myreport.html
+.phpunit.result.cache
+.DS_Store

@@ -1,0 +1,50 @@
+x-app: &app
+  image: jobchecker
+  init: true
+  env_file: .env
+  environment:
+    DB_HOST: db
+    DB_PORT: 3306
+    CLAUDE_BIN: /usr/local/bin/claude
+  volumes:
+    - ./storage:/app/storage
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  web:
+    <<: *app
+    build: .
+    command: sh -c "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      CLAUDE_BIN: /usr/local/bin/claude
+      PHP_CLI_SERVER_WORKERS: 4
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      # The existing data was written by Laravel in UTC into a server running on local time,
+      # so the server keeps that zone or every stored date shifts by the offset.
+      TZ: Europe/Warsaw
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  db-data:

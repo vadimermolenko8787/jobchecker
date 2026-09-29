@@ -11,6 +11,23 @@ php artisan serve
 
 Требования: PHP 8.3+, MariaDB (база `jobchecker`, доступ в `.env`), Claude Code CLI (путь в `config/jobchecker.php`, переопределяется через `CLAUDE_BIN` в `.env`).
 
+### Docker
+
+```bash
+docker compose up -d --build
+# открыть http://jobchecker.loc (или напрямую http://127.0.0.1:8000)
+```
+
+Адрес `jobchecker.loc` обслуживает хостовый nginx (`/opt/homebrew/etc/nginx/servers/jobchecker.loc.conf`), он проксирует на `127.0.0.1:8000`. В `/etc/hosts` нужна строка `127.0.0.1 jobchecker.loc`.
+
+Поднимаются три контейнера: `web` (интерфейс, при старте выполняет миграции), `scheduler` (`schedule:work`, заменяет строку в crontab) и `db` (MariaDB, данные в томе `db-data`). Настройки берутся из `.env`, `DB_HOST` и `CLAUDE_BIN` переопределяются в `docker-compose.yml`. Claude CLI внутри контейнера авторизуется только через `CLAUDE_CODE_OAUTH_TOKEN` в `.env` (`claude setup-token`), Keychain из контейнера недоступен. Папка `storage` примонтирована с хоста, резюме, документы и логи остаются в ней.
+
+Перенос базы с локальной MariaDB:
+
+```bash
+mariadb-dump -uroot -proot jobchecker | docker compose exec -T db mariadb -uroot -proot jobchecker
+```
+
 ## Как пользоваться
 
 1. На панели загрузить резюме в PDF. Claude извлечёт ключевые слова стека, они подставятся в настройки поиска (можно править).

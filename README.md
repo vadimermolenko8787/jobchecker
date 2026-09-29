@@ -1,86 +1,164 @@
 # JobChecker
 
-Локальный агрегатор вакансий: собирает вакансии с dou.ua, djinni.co, justjoin.it, it.pracuj.pl, jobico.io, jooble, LinkedIn и Indeed, находит новые, оценивает их через локальный Claude Code CLI по соответствию резюме и для лучших генерирует адаптированное резюме и cover letter (на английском).
+[![Tests](https://github.com/vadimermolenko8787/jobchecker/actions/workflows/tests.yml/badge.svg)](https://github.com/vadimermolenko8787/jobchecker/actions/workflows/tests.yml)
+![PHP 8.3+](https://img.shields.io/badge/PHP-8.3%2B-777BB4)
+![Laravel 13](https://img.shields.io/badge/Laravel-13-FF2D20)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Запуск
+A self-hosted job search assistant. JobChecker collects fresh postings from eight job boards, scores each one against your resume with Claude, and for the best matches writes a tailored resume and cover letter. New matches arrive in Telegram.
 
-```bash
-php artisan serve
-# открыть http://127.0.0.1:8000
+It is built for one person running it on their own machine: there is no registration, and your resume and job data never leave your computer except for the prompts sent to Claude.
+
+## Features
+
+- **Eight sources:** dou.ua, djinni.co, justjoin.it, it.pracuj.pl, jobico.io, jooble, LinkedIn and Indeed, deduplicated across boards.
+- **Transparent scoring:** Claude rates four criteria (skills, stack, seniority, location and format) on anchored 0 to 10 scales with evidence for each one. The final score is a weighted sum computed in PHP, not a number the model makes up.
+- **Tailored documents:** a resume and cover letter adapted to the posting, in Markdown, HTML or PDF, in the language you pick.
+- **Company research (optional):** Claude searches the web for reviews and red flags about the employer.
+- **Telegram notifications** with a mute button that works without a public webhook.
+- **Scheduled runs** with a cron expression, plus manual runs with live progress and a stop button.
+- **Full audit trail:** every run keeps its pipeline log and every HTTP request and response per source.
+- **Russian and English interface.**
+
+## How it works
+
+```
+sources ──► keyword / stop-word / location filters ──► new postings
+        ──► Claude scores each posting against your resume (batched)
+        ──► borderline scores are re-checked, median of three
+        ──► score ≥ threshold: matched ──► resume + cover letter ──► Telegram
 ```
 
-Требования: PHP 8.3+, MariaDB (база `jobchecker`, доступ в `.env`), Claude Code CLI (путь в `config/jobchecker.php`, переопределяется через `CLAUDE_BIN` в `.env`).
+Claude is called through the local [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) in headless mode (`claude -p`), so it runs on your Claude subscription and needs no separate API key.
 
-### Docker
+## Quick start with Docker
+
+Requirements: Docker with Compose, and a Claude subscription for the Claude Code CLI.
+
+```bash
+git clone https://github.com/vadimermolenko8787/jobchecker.git
+cd jobchecker
+cp .env.example .env
+```
+
+Edit `.env`:
+
+1. Set `DB_PASSWORD` to any password; the database container is created with it.
+2. Set `CLAUDE_CODE_OAUTH_TOKEN`. Create the token on a machine where Claude Code is installed with `claude setup-token`. A container can't reach your desktop login, so the token is the only way to authenticate there.
+3. Generate the app key and paste it into `APP_KEY`:
+
+   ```bash
+   docker compose run --rm --no-deps web php artisan key:generate --show
+   ```
+
+Start everything and create your login:
 
 ```bash
 docker compose up -d --build
-# открыть http://jobchecker.loc (или напрямую http://127.0.0.1:8000)
+docker compose exec web php artisan user:create you@example.com
 ```
 
-Адрес `jobchecker.loc` обслуживает хостовый nginx (`/opt/homebrew/etc/nginx/servers/jobchecker.loc.conf`), он проксирует на `127.0.0.1:8000`. В `/etc/hosts` нужна строка `127.0.0.1 jobchecker.loc`.
+Open http://127.0.0.1:8000 and sign in.
 
-Поднимаются три контейнера: `web` (интерфейс, при старте выполняет миграции), `scheduler` (`schedule:work`, заменяет строку в crontab) и `db` (MariaDB, данные в томе `db-data`). Настройки берутся из `.env`, `DB_HOST` и `CLAUDE_BIN` переопределяются в `docker-compose.yml`. Claude CLI внутри контейнера авторизуется только через `CLAUDE_CODE_OAUTH_TOKEN` в `.env` (`claude setup-token`), Keychain из контейнера недоступен. Папка `storage` примонтирована с хоста, резюме, документы и логи остаются в ней.
+Compose starts three containers:
 
-Перенос базы с локальной MariaDB:
+| Container | Role |
+|---|---|
+| `web` | the web UI on port 8000 (bound to localhost only); runs migrations on start |
+| `scheduler` | `php artisan schedule:work`, runs scheduled searches and Telegram polling |
+| `db` | MariaDB 11, data kept in the `db-data` volume |
+
+`storage/` is mounted from the host, so uploaded resumes, generated documents and logs stay on your disk.
+
+### Without Docker
+
+You need PHP 8.3+, Composer, MariaDB or MySQL, and the Claude Code CLI logged in (`claude /login`).
 
 ```bash
-mariadb-dump -uroot -proot jobchecker | docker compose exec -T db mariadb -uroot -proot jobchecker
+composer install
+cp .env.example .env        # set the DB_* values
+php artisan key:generate
+php artisan migrate
+php artisan user:create you@example.com
+php artisan serve
 ```
 
-## Как пользоваться
-
-1. На панели загрузить резюме в PDF. Claude извлечёт ключевые слова стека, они подставятся в настройки поиска (можно править).
-2. Настроить фильтры: обязательные слова и стоп-слова, локации, только remote, минимальный score для генерации документов, веса критериев скоринга.
-
-Локации (для LinkedIn и Indeed) выбираются в дропдауне-мультиселекте из справочника стран ЕС/EFTA и UK, поиск выполняется по каждой отмеченной локации отдельно, результаты дедуплицируются. Код страны Indeed берётся из справочника, отдельно его задавать не нужно. Чего нет в справочнике, вписывается в поле «Другие локации» через запятую; такие локации ищутся только на LinkedIn, если не указать код страны через двоеточие (`Tbilisi:GE`). LinkedIn опрашивается пачками с паузой между ними (по умолчанию 2 локации и 15 секунд, настраивается в «Параметрах источников»), при 429 обход локаций прерывается с записью в лог.
-
-Категории it.pracuj.pl выбираются там же, в «Параметрах источников», мультиселектом: два IT-раздела целиком или отдельные подкатегории (программирование, архитектура, тестирование и др.). Ничего не отмечено — берутся оба раздела. Локации на этот источник не влияют, он только по Польше.
-3. Нажать «Пуск» для ручного запуска, прогресс виден на панели.
-4. Для автозапуска включить расписание, задать cron-выражение и один раз добавить в crontab:
+For scheduled runs add one line to your crontab:
 
 ```
-* * * * * cd /private/var/www/jobchecker && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /path/to/jobchecker && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-## Скоринг
+If `claude` is not on the web server's `PATH`, set `CLAUDE_BIN` in `.env` to the full path.
 
-Оценка покритериальная, а не одним числом «на усмотрение модели». Claude оценивает четыре критерия по шкале 0-10, каждый с доказательствами (`matched` / `missing`) и анкерной шкалой: навыки, стек, уровень, локация и формат. Итоговый score считается в PHP как взвешенная сумма (веса настраиваются на панели, нормализуются автоматически), поверх применяется штраф за языковой барьер: `warning` минус 15, `critical` не выше 40. Вакансии, попавшие в ±7 балла от порога, автоматически перепроверяются двумя одиночными прогонами, итог берётся по медиане трёх. Разбивка и прогоны хранятся в `vacancies.score_breakdown` и показываются в карточке вакансии.
+## Usage
 
-Описания вакансий уходят в модель целиком, без обрезки, иначе требования и условия из хвоста текста просто не участвуют в оценке. Поэтому батч скоринга небольшой (`Pipeline::SCORE_BATCH_SIZE`).
+1. **Upload your resume** (PDF) on the dashboard. Claude extracts your stack keywords and fills them into the search settings, where you can edit them.
+2. **Set the filters:** required keywords and stop words, locations, remote only, the minimum score for document generation, and the weights of the scoring criteria.
+3. **Pick the sources** and their options. API keys (jooble, Indeed) and the Telegram bot token are entered in the same settings form and stored in the database. Locations for LinkedIn and Indeed are chosen from a catalog of EU/EFTA countries and the UK, each one is searched separately. Anything missing from the catalog goes into "Other locations", comma separated, with an optional country code (`Tbilisi:GE`) to include Indeed.
+4. **Run a search** with the button in the sidebar, or turn on the schedule and set a cron expression.
+5. **Review results** on the Vacancies page. Matched postings get documents generated automatically, and you can regenerate them with extra instructions or in another language, research the company, or mark the posting as applied.
 
-Результаты: страница «Вакансии» (score, статусы: new, matched, rejected, done), у done-вакансий доступны адаптированное резюме и cover letter (файлы также лежат в `storage/app/private/output/{id}/`). У каждого запуска есть детальная страница с логом пайплайна и полным журналом HTTP-запросов/ответов по каждому источнику (`fetch_logs`).
+The interface language is switched at the bottom of the sidebar. It is a global setting, so run logs and Telegram messages follow it as well.
+
+## Scoring
+
+Claude grades four criteria on a 0 to 10 scale, each with an anchored rubric and explicit evidence (`matched` / `missing`): skills, stack, seniority, and location and format. PHP turns them into the final score as a weighted sum (the weights are set on the dashboard and normalised automatically), then applies a language barrier penalty: `warning` subtracts 15, `critical` caps the score at 40.
+
+Postings within ±7 points of the threshold are re-scored twice individually and the median of the three runs wins, because a single call near the threshold is noisy. The breakdown and every run are stored in `vacancies.score_breakdown` and shown on the posting page.
+
+Descriptions are sent to the model in full. Truncating them was the main cause of false rejections, as remote policy and relocation terms often sit at the end of the text. That is why the scoring batch is small (`Pipeline::SCORE_BATCH_SIZE`).
 
 ## Telegram
 
-Под каждым сообщением о вакансии есть кнопка «🔕 Не присылать». Нажатие ставит вакансии отметку `muted_at`, и она больше не уходит в чат, вместе со своими копиями с других источников (тот же ключ «компания + название», по которому уже отсекаются дубли за сутки). Повторное нажатие на кнопку («🔔 Присылать снова») отметку снимает, и вакансия снова сможет приходить, когда источник поднимет её заново. То же самое делает кнопка на странице вакансии и в колонке «Telegram» в таблице вакансий. Отметка ставится сразу на все копии вакансии, так что кнопка на любой из них показывает одно и то же состояние.
+Enable Telegram on the dashboard with a bot token and a chat id, then check them with "Send a test message to Telegram".
 
-У приложения нет публичного адреса, поэтому webhook не используется: нажатия забирает команда `telegram:poll` через `getUpdates`. Она включается в расписание сама, когда включён Telegram, и работает при той же строке `schedule:run` в crontab, что и автозапуск поиска. Запрос висит на открытом соединении до 50 секунд и забирает нажатие почти сразу, иначе Telegram успевает просрочить подтверждение нажатия и в чате не появляется никакой реакции. Поэтому ручной запуск тоже ждёт нажатия до минуты:
+Each notification has a "🔕 Mute" button. Muting a posting also mutes its copies from other boards (same company and title). The app has no public address, so it doesn't use a webhook: `telegram:poll` fetches button presses with long polling. It is added to the schedule automatically when Telegram is enabled.
 
-```bash
-php artisan telegram:poll
-```
+## Sources
 
-## Источники
-
-| Источник | Метод | Надёжность |
+| Source | Method | Notes |
 |---|---|---|
-| dou.ua | публичный RSS | стабильно |
-| djinni.co | публичный RSS | стабильно (компании анонимны) |
-| justjoin.it | внутренний JSON API (заголовок `Version: 2`) | стабильно |
-| it.pracuj.pl | публичный JSON API листинга, категории задаются на панели | стабильно, но описания короткие: страницы вакансий закрыты Cloudflare |
-| jobico.io | публичный XML-фид для агрегаторов, ключевые слова и remote фильтруются локально | стабильно, фид отдаёт все вакансии сайта одним запросом |
-| jooble | официальный REST API, ключ на каждый сайт страны (`de:ключ, pl:ключ` в «Параметрах источников») | стабильно, но вместо описания короткий сниппет: страницы вакансий закрыты Cloudflare; по умолчанию выключен |
-| LinkedIn | гостевой HTML endpoint | хрупко, троттлинг 2 с |
-| Indeed | GraphQL API мобильного приложения (ключ из проекта JobSpy), запрос на каждую локацию со своим кодом страны | работает, ключ может смениться, по умолчанию выключен |
+| dou.ua | public RSS | stable |
+| djinni.co | public RSS | stable, companies are anonymous |
+| justjoin.it | internal JSON API (`Version: 2` header) | stable |
+| it.pracuj.pl | public listing JSON API, categories picked on the dashboard | short descriptions, job pages are behind Cloudflare |
+| jobico.io | public XML feed for aggregators, filtered locally | one request returns the whole site |
+| jooble | official REST API, one key per country site (`de:key, pl:key`) | snippets instead of full descriptions; off by default |
+| LinkedIn | guest HTML endpoint | fragile, rate limited, queried in batches with a pause |
+| Indeed | mobile app GraphQL API | needs an API key; off by default |
 
-Если Indeed перестанет отвечать, актуальный `indeed-api-key` можно взять из репозитория github.com/speedyapply/JobSpy (`app/Services/Sources/IndeedSource.php`).
+Indeed has no public API. The key its mobile app uses is published by the [JobSpy](https://github.com/speedyapply/JobSpy) project; enter it in the source settings if you enable this source, and take a fresh one from there if Indeed rotates it.
 
-API it.pracuj.pl неофициальный, и хост шлюза объявляется фронтендом. Если источник перестанет отвечать ожидаемым JSON, он не молчит, а падает с ошибкой: сам перечитывает `API_CLIENT_GATEWAY` с it.pracuj.pl и пишет в лог прогона новый хост, который нужно подставить в `PracujSource::GATEWAY`. Об ошибке любого источника приходит алерт в Telegram, если он настроен.
+The it.pracuj.pl gateway host is announced by its frontend. When the API stops answering with the expected JSON, the source fails loudly and writes the current host into the run log so `PracujSource::GATEWAY` can be updated. A failure of any source triggers a Telegram alert if Telegram is configured.
+
+Please respect each site's terms of use. The sources use public feeds and endpoints and throttle their requests, but you are responsible for how you run them.
 
 ## CLI
 
 ```bash
-php artisan jobs:search            # полный цикл вручную
-php artisan schedule:list          # проверить расписание
+php artisan user:create you@example.com   # create the login user or reset their password
+php artisan jobs:search                   # run the full pipeline once
+php artisan jobs:generate {id}            # (re)generate documents for a posting
+php artisan company:research {id}         # research the company of a posting
+php artisan telegram:poll                 # fetch Telegram button presses once
+php artisan schedule:list                 # show the schedule
 ```
+
+In Docker, prefix them with `docker compose exec web`.
+
+## Development
+
+```bash
+composer install
+php artisan test          # PHPUnit, uses in-memory SQLite
+vendor/bin/pint           # code style
+```
+
+CI runs the test suite and the style check on PHP 8.3 and 8.4.
+
+**Stack:** Laravel 13, Laravel Fortify, MariaDB, Blade with plain CSS and JS (no build step), dompdf, smalot/pdfparser, Claude Code CLI.
+
+## License
+
+[MIT](LICENSE)

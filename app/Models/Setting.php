@@ -12,6 +12,9 @@ class Setting extends Model
     protected $fillable = ['key', 'value'];
     protected $casts = ['value' => 'json'];
 
+    /** Interface languages; the first is the default when nothing is stored. */
+    public const LOCALES = ['ru', 'en'];
+
     public const DEFAULTS = [
         'cron_expression' => '0 */6 * * *',
         'schedule_enabled' => false,

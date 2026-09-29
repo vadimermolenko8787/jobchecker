@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Resume;
 use App\Models\Run;
+use App\Models\Setting;
 use App\Models\Vacancy;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +24,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        try {
+            $locale = Setting::get('locale');
+        } catch (\Throwable) {
+            // DB not migrated yet (e.g. during composer install), keep the configured locale.
+            $locale = null;
+        }
+        if (in_array($locale, Setting::LOCALES, true)) {
+            app()->setLocale($locale);
+        }
+
         $shared = null;
         View::composer(
             ['layouts.app', 'dashboard', 'vacancies.index', 'vacancies.show', 'runs.show'],

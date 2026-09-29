@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Resume;
 use App\Models\Run;
 use App\Models\Setting;
+use App\Models\User;
 use App\Models\Vacancy;
 use App\Services\Pipeline;
 use App\Services\VacancyScorer;
@@ -19,6 +20,7 @@ class RunStopTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(User::factory()->create());
         // A stop must be noticed before anything leaves the machine, so an outgoing
         // request here is itself the failure the assertions below look for.
         Http::fake();

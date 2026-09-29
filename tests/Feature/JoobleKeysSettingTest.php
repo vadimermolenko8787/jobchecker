@@ -3,12 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class JoobleKeysSettingTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(User::factory()->create());
+    }
 
     /** The smallest settings form the controller accepts. */
     private function save(string $joobleKeys)

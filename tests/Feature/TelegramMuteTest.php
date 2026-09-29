@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Setting;
+use App\Models\User;
 use App\Models\Vacancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -27,6 +28,7 @@ class TelegramMuteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(User::factory()->create());
         Setting::set('telegram_enabled', true);
         Setting::set('telegram_bot_token', self::TOKEN);
         Setting::set('telegram_chat_id', self::CHAT_ID);

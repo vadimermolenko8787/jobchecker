@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru" data-theme="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,6 +83,22 @@
             padding: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 13px;
         }
         .theme-toggle:hover { color: var(--text); border-color: var(--faint); }
+        .side-foot { display: flex; gap: 8px; }
+        .side-foot > * { flex: 1; }
+        .side-foot form { display: flex; }
+        .side-foot form .theme-toggle { flex: 1; }
+        .lang-switch { display: flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+        .lang-switch button {
+            flex: 1; background: none; border: 0; color: var(--muted); cursor: pointer;
+            font: inherit; font-family: var(--mono); font-size: 12px; padding: 8px 0;
+        }
+        .lang-switch button:hover { color: var(--text); }
+        .lang-switch button.is-active { background: var(--signal-dim); color: var(--signal); cursor: default; }
+
+        /* guests see only the login card, without the sidebar */
+        .app.-guest { grid-template-columns: minmax(0,1fr); }
+        .login { max-width: 380px; margin: 12vh auto 0; }
+        .login .brand { justify-content: center; margin-bottom: 22px; }
 
         .main { min-width: 0; }
         .page { max-width: 1080px; margin: 0 auto; padding: 34px 40px 80px; }
@@ -151,7 +167,7 @@
         .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
         .field > .lab { font-size: 13px; font-weight: 600; color: var(--text); }
         .field .help { font-size: 12px; color: var(--faint); line-height: 1.5; }
-        input[type=text], input[type=number], input[type=password], input[type=date], select, textarea {
+        input[type=text], input[type=email], input[type=number], input[type=password], input[type=date], select, textarea {
             width: 100%; font: inherit; font-size: 14px; color: var(--text);
             background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-sm);
             padding: 9px 11px; transition: border-color .12s, box-shadow .12s;
@@ -372,7 +388,8 @@
     </style>
 </head>
 <body>
-<div class="app">
+<div @class(['app', '-guest' => auth()->guest()])>
+    @auth
     <aside class="sidebar">
         <div class="brand">
             <span class="brand-mark" aria-hidden="true">
@@ -428,7 +445,21 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             <span>Тема</span>
         </button>
+
+        <div class="side-foot">
+            <form method="post" action="{{ route('locale.update') }}" class="lang-switch" aria-label="{{ __('Language') }}">
+                @csrf
+                @foreach (\App\Models\Setting::LOCALES as $code)
+                    <button type="submit" name="locale" value="{{ $code }}" @class(['is-active' => app()->getLocale() === $code]) @disabled(app()->getLocale() === $code)>{{ strtoupper($code) }}</button>
+                @endforeach
+            </form>
+            <form method="post" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="theme-toggle">{{ __('Log out') }}</button>
+            </form>
+        </div>
     </aside>
+    @endauth
 
     <main class="main">
         <div class="page @yield('page-class')">
@@ -461,6 +492,7 @@
         });
     })();
 
+    @auth
     (function () {
         var statusEl = document.getElementById('side-run-status');
         var btn = document.getElementById('side-run-btn');
@@ -487,6 +519,7 @@
         }
         poll(); setInterval(poll, 3000);
     })();
+    @endauth
 
     // Turns a chip list into a dropdown; without this it degrades to a plain chip list.
     (function () {

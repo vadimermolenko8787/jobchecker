@@ -18,6 +18,13 @@ class PracujSource implements JobSourceInterface
     /** Host the frontend currently names as API_CLIENT_GATEWAY. */
     private const GATEWAY = 'https://massachusetts.pracuj.pl';
 
+    /**
+     * Cloudflare in front of pracuj.pl answers with a challenge to the handshake of
+     * Debian's curl/OpenSSL (the Docker image) while it still offers TLS 1.2; the same
+     * request limited to TLS 1.3 goes through. macOS curl passed either way.
+     */
+    private const TLS = ['curl' => [CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_3]];
+
     /** Offers per page the endpoint returns, and how many pages one query is worth. */
     private const PAGE_SIZE = 50;
 
@@ -78,7 +85,7 @@ class PracujSource implements JobSourceInterface
             // A keyword search runs past 50 offers regularly, and the plain category
             // listing always does, so pages are followed until one comes back short.
             for ($page = 1; $page <= self::MAX_PAGES; $page++) {
-                $response = $http->get($url . '&pn=' . $page, ['Accept' => 'application/json']);
+                $response = $http->get($url . '&pn=' . $page, ['Accept' => 'application/json'], self::TLS);
                 $offers = $response?->successful() ? $response->json('groupedOffers') : null;
                 if (! is_array($offers)) {
                     break;
@@ -170,7 +177,7 @@ class PracujSource implements JobSourceInterface
     {
         // That page answers 404 (the app has no robots.txt), and the config is in the
         // 404 body itself, so the status is deliberately not looked at.
-        $body = $http->get('https://it.pracuj.pl/robots.txt')?->body() ?? '';
+        $body = $http->get('https://it.pracuj.pl/robots.txt', options: self::TLS)?->body() ?? '';
 
         // Narrow on purpose: the captured host is quoted back at the operator as the one
         // to put into the code, so anything but a pracuj.pl host is not worth repeating.

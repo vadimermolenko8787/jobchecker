@@ -16,9 +16,10 @@ class SourceHttp
 
     public function __construct(private ?Run $run, private string $source) {}
 
-    public function get(string $url, array $headers = []): ?Response
+    /** @param  array  $options  Guzzle request options, e.g. curl settings a single source needs */
+    public function get(string $url, array $headers = [], array $options = []): ?Response
     {
-        return $this->send('GET', $url, $headers);
+        return $this->send('GET', $url, $headers, options: $options);
     }
 
     /** Write a progress line into the run log, prefixed with the source key. */
@@ -32,7 +33,7 @@ class SourceHttp
         return $this->send('POST', $url, $headers, $body);
     }
 
-    private function send(string $method, string $url, array $headers, mixed $body = null): ?Response
+    private function send(string $method, string $url, array $headers, mixed $body = null, array $options = []): ?Response
     {
         $headers = array_merge(['User-Agent' => self::BROWSER_UA], $headers);
         $start = microtime(true);
@@ -48,7 +49,7 @@ class SourceHttp
         ];
 
         try {
-            $pending = Http::withHeaders($headers)->timeout(30)->connectTimeout(10);
+            $pending = Http::withHeaders($headers)->withOptions($options)->timeout(30)->connectTimeout(10);
             $response = $method === 'POST'
                 ? $pending->withBody(is_string($body) ? $body : json_encode($body), 'application/json')->post($url)
                 : $pending->get($url);

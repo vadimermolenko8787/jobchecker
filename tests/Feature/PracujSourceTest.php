@@ -299,4 +299,25 @@ class PracujSourceTest extends TestCase
 
         $this->fetch();
     }
+
+    public function test_every_request_insists_on_tls_1_3(): void
+    {
+        // Cloudflare answers the TLS 1.2-capable handshake of Debian's curl with a challenge.
+        $versions = [];
+        Http::fake(function (Request $request, array $options) use (&$versions) {
+            $versions[$request->url()] = $options['curl'][CURLOPT_SSLVERSION] ?? null;
+
+            return str_contains($request->url(), 'robots.txt')
+                ? Http::response('', 404)
+                : Http::response(status: 403);
+        });
+
+        try {
+            $this->fetch(['search_keywords' => ['PHP']]);
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertCount(2, $versions);
+        $this->assertSame([CURL_SSLVERSION_TLSv1_3], array_values(array_unique($versions)));
+    }
 }

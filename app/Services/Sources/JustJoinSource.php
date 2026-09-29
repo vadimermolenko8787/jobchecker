@@ -70,9 +70,7 @@ class JustJoinSource implements JobSourceInterface
             throw new \RuntimeException(__('gateway :gateway does not answer with the expected JSON, no vacancies received', ['gateway' => self::GATEWAY]));
         }
 
-        $this->enrichNewOffers($result, $http);
-
-        return array_values($result);
+        return array_values($this->enrichNewOffers($result, $http));
     }
 
     private function toVacancy(array $offer): VacancyData
@@ -102,13 +100,17 @@ class JustJoinSource implements JobSourceInterface
 
     /**
      * Full description lives in the detail endpoint; fetch it only for offers not yet in the DB.
+     * New offers past the cap are held back for the next run: once stored, an offer is never
+     * fetched again, and with the skill list alone the scorer reads the English skill names
+     * as the posting's language, so a Polish one slips past the language filter.
      *
      * @param  array<string, VacancyData>  $offers
+     * @return array<string, VacancyData>
      */
-    private function enrichNewOffers(array $offers, SourceHttp $http): void
+    private function enrichNewOffers(array $offers, SourceHttp $http): array
     {
         if ($offers === []) {
-            return;
+            return [];
         }
         $known = Vacancy::query()
             ->where('source', $this->key())
@@ -116,6 +118,7 @@ class JustJoinSource implements JobSourceInterface
             ->pluck('external_id')
             ->all();
         $new = array_diff_key($offers, array_flip($known));
+        $offers = array_diff_key($offers, array_slice($new, self::MAX_DETAIL_FETCHES, preserve_keys: true));
 
         foreach (array_slice($new, 0, self::MAX_DETAIL_FETCHES, preserve_keys: true) as $vacancy) {
             $response = $http->get(self::GATEWAY . "/offers/{$vacancy->externalId}", self::API_HEADERS);
@@ -127,5 +130,7 @@ class JustJoinSource implements JobSourceInterface
                 $vacancy->description = $body;
             }
         }
+
+        return $offers;
     }
 }

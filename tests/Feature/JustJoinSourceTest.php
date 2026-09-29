@@ -152,6 +152,30 @@ class JustJoinSourceTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/offers/acme'));
     }
 
+    public function test_new_offers_past_the_detail_cap_wait_for_the_next_run(): void
+    {
+        // Stored with the skill list alone, an offer would never get its text: the scorer
+        // then reads the English skill names as the posting's language.
+        $offers = array_map(fn (int $i) => $this->offer(['slug' => "offer-{$i}"]), range(1, 25));
+        Http::fake([
+            self::LISTING => Http::response($this->listing($offers)),
+            self::DETAIL => Http::response(['body' => '<p>Opis stanowiska</p>']),
+        ]);
+
+        $first = $this->fetch();
+
+        $this->assertCount(20, $first);
+        $this->assertSame(['<p>Opis stanowiska</p>'], array_values(array_unique(array_map(fn (VacancyData $v) => $v->description, $first))));
+
+        foreach ($first as $vacancy) {
+            Vacancy::query()->create(['source' => 'justjoin', 'external_id' => $vacancy->externalId, 'title' => $vacancy->title, 'url' => $vacancy->url]);
+        }
+
+        $second = array_filter($this->fetch(), fn (VacancyData $v) => in_array($v->externalId, ['offer-21', 'offer-25'], true));
+        $this->assertCount(2, $second);
+        $this->assertSame(['<p>Opis stanowiska</p>'], array_values(array_unique(array_map(fn (VacancyData $v) => $v->description, $second))));
+    }
+
     public function test_a_gateway_that_answers_nothing_is_reported(): void
     {
         Http::fake([self::LISTING => Http::response('<html>503 Service Temporarily Unavailable</html>', 503)]);

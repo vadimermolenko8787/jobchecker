@@ -320,7 +320,7 @@ class VacancyScorer
             . '"location": {"matched": ["..."], "missing": ["..."], "score": <0-10>}}, '
             . '"reason": "<one short sentence in English>", '
             . '"summary": "<2-3 предложения на русском>", '
-            . '"language": {"vacancy_language": "<language the posting is written in>", '
+            . '"language": {"vacancy_language": "<only the name of the language the posting is written in, in English, no comments; spelled as in CANDIDATE KNOWN LANGUAGES when it is one of them>", '
             . '"required_languages": ["<language>", ...], '
             . '"language_fit": "ok" | "warning" | "critical", '
             . '"note": "<короткое пояснение на русском; пустая строка если fit = ok>"}}]';

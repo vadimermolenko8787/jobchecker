@@ -95,6 +95,9 @@
                 @elseif (($bd['language_fit'] ?? null) === 'warning')
                     @php($notes[] = 'языковой барьер: −15 к взвешенной сумме (' . ($bd['base_score'] ?? '?') . ')')
                 @endif
+                @if ($bd['foreign_language'] ?? null)
+                    @php($notes[] = 'отклонена: язык вакансии ' . $bd['foreign_language'] . ' не входит в известные языки')
+                @endif
                 @if ($bd['rechecked'] ?? false)
                     @php($notes[] = 'перепроверено: ' . implode(' / ', $bd['run_scores'] ?? []) . ' → итог ' . $vacancy->score)
                 @endif

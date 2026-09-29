@@ -11,6 +11,8 @@ use App\Services\Sources\DjinniSource;
 use App\Services\Sources\DouSource;
 use App\Services\Sources\IndeedSource;
 use App\Services\Sources\JobSourceInterface;
+use App\Services\Sources\JobicoSource;
+use App\Services\Sources\JoobleSource;
 use App\Services\Sources\JustJoinSource;
 use App\Services\Sources\LinkedInSource;
 use App\Services\Sources\PracujSource;
@@ -67,7 +69,7 @@ class Pipeline
     private function fetchSources(Run $run, array $settings, array &$stats): array
     {
         /** @var JobSourceInterface[] $sources */
-        $sources = [new DouSource, new DjinniSource, new JustJoinSource, new LinkedInSource, new IndeedSource, new PracujSource];
+        $sources = [new DouSource, new DjinniSource, new JustJoinSource, new LinkedInSource, new IndeedSource, new PracujSource, new JobicoSource, new JoobleSource];
         $enabled = $settings['sources'] ?? [];
         $all = [];
 
@@ -212,6 +214,7 @@ class Pipeline
         $knownLanguages = array_values((array) ($settings['known_languages'] ?? ['English', 'Russian', 'Ukrainian']));
         $weights = VacancyScorer::weights($settings);
         $scored = 0;
+        $foreignCount = 0;
         /** @var array<int, array{vacancy: Vacancy, score: int, result: array}> $toRecheck */
         $toRecheck = [];
 
@@ -234,15 +237,21 @@ class Pipeline
                 }
                 $score = $this->finalScore($result, $weights);
                 $scored++;
+                $foreign = $this->foreignLanguage($result, $knownLanguages);
 
                 // Near the threshold a single verdict decides matched/rejected, so those
-                // get re-scored individually and settled by median instead.
-                if (abs($score - $minScore) <= VacancyScorer::RECHECK_MARGIN) {
+                // get re-scored individually and settled by median instead. A posting in a
+                // language the candidate does not know is rejected whatever the score, so
+                // re-scoring it would only burn tokens.
+                if ($foreign === null && abs($score - $minScore) <= VacancyScorer::RECHECK_MARGIN) {
                     $toRecheck[] = ['vacancy' => $vacancy, 'score' => $score, 'result' => $result];
 
                     continue;
                 }
-                if ($this->persistScore($vacancy, $score, $result, $weights, $minScore)) {
+                if ($foreign !== null) {
+                    $foreignCount++;
+                }
+                if ($this->persistScore($vacancy, $score, $result, $weights, $minScore, foreign: $foreign)) {
                     $matched->push($vacancy);
                 }
             }
@@ -287,12 +296,21 @@ class Pipeline
                 . ($chosen['score'] === $median ? '' : ", итог {$chosen['score']}"),
             );
 
-            if ($this->persistScore($vacancy, $chosen['score'], $chosen['result'], $weights, $minScore, $runScores)) {
+            // The first verdict found the language known; the chosen run gets the final say.
+            $foreign = $this->foreignLanguage($chosen['result'], $knownLanguages);
+            if ($foreign !== null) {
+                $foreignCount++;
+            }
+            if ($this->persistScore($vacancy, $chosen['score'], $chosen['result'], $weights, $minScore, $runScores, $foreign)) {
                 $matched->push($vacancy);
             }
         }
 
+        if ($foreignCount > 0) {
+            $run->appendLog("Отклонено по языку вакансии: {$foreignCount} (не входит в известные языки: " . implode(', ', $knownLanguages) . ')');
+        }
         $stats['scored'] = $scored;
+        $stats['rejected_language'] = $foreignCount;
         $stats['rechecked'] = count($toRecheck);
         $stats['matched'] = $matched->count();
 
@@ -309,7 +327,32 @@ class Pipeline
     }
 
     /**
+     * The language a posting is written in when the candidate knows none of it, null when
+     * it is known or the model did not say. The model has answered with free text before
+     * ("English (with Ukrainian UI labels)", "German company, posting written in English"),
+     * so a known language named anywhere in it as a whole word counts; a bilingual posting
+     * passes the same way.
+     *
+     * @param  string[]  $knownLanguages
+     */
+    private function foreignLanguage(array $result, array $knownLanguages): ?string
+    {
+        $language = trim((string) ($result['language']['vacancy_language'] ?? ''));
+        if ($language === '') {
+            return null;
+        }
+        foreach (array_filter(array_map('trim', $knownLanguages)) as $known) {
+            if (preg_match('/(?<![\p{L}\p{N}])' . preg_quote($known, '/') . '(?![\p{L}\p{N}])/iu', $language)) {
+                return null;
+            }
+        }
+
+        return $language;
+    }
+
+    /**
      * @param  int[]|null  $runScores
+     * @param  string|null  $foreign  the posting's language when the candidate does not know it
      * @return bool whether the vacancy ended up matched
      */
     private function persistScore(
@@ -319,6 +362,7 @@ class Pipeline
         array $weights,
         int $minScore,
         ?array $runScores = null,
+        ?string $foreign = null,
     ): bool {
         $breakdown = [
             'criteria' => $result['criteria'],
@@ -329,6 +373,9 @@ class Pipeline
         if ($runScores !== null) {
             $breakdown['rechecked'] = true;
             $breakdown['run_scores'] = array_values($runScores);
+        }
+        if ($foreign !== null) {
+            $breakdown['foreign_language'] = $foreign;
         }
 
         $analysis = array_filter([
@@ -341,7 +388,7 @@ class Pipeline
             'score_reason' => $result['reason'],
             'score_breakdown' => $breakdown,
             'analysis' => $analysis ?: null,
-            'status' => $score >= $minScore ? 'matched' : 'rejected',
+            'status' => $score >= $minScore && $foreign === null ? 'matched' : 'rejected',
         ]);
 
         return $vacancy->status === 'matched';

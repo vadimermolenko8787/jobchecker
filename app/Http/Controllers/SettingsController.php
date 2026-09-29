@@ -41,6 +41,7 @@ class SettingsController extends Controller
             'justjoin_category' => ['nullable', 'integer'],
             'pracuj_categories' => ['nullable', 'array'],
             'pracuj_categories.*' => ['string', Rule::in(array_keys(PracujSource::CATEGORIES))],
+            'jooble_keys' => ['nullable', 'string'],
             'linkedin_batch_size' => ['required', 'integer', 'min:1', 'max:10'],
             'linkedin_batch_pause' => ['required', 'integer', 'min:0', 'max:300'],
             'telegram_enabled' => ['nullable', 'boolean'],
@@ -64,6 +65,15 @@ class SettingsController extends Controller
         }
 
         $csv = fn (?string $value) => array_values(array_filter(array_map('trim', explode(',', (string) $value))));
+
+        // "de:KEY, pl:KEY": a jooble key only works on the country site it was issued for.
+        $joobleKeys = [];
+        foreach ($csv($data['jooble_keys'] ?? null) as $entry) {
+            if (! preg_match('/^([a-z]{2})\s*:\s*([A-Za-z0-9-]+)$/i', $entry, $m)) {
+                return back()->with('error', 'Ключ jooble записывается как код страны и ключ через двоеточие, например de:xxxxxxxx.')->withInput();
+            }
+            $joobleKeys[strtolower($m[1])] = $m[2];
+        }
 
         Setting::set('cron_expression', $data['cron_expression']);
         Setting::set('schedule_enabled', (bool) ($data['schedule_enabled'] ?? false));
@@ -91,6 +101,7 @@ class SettingsController extends Controller
         Setting::set('djinni_primary_keyword', $data['djinni_primary_keyword'] ?? 'PHP');
         Setting::set('justjoin_category', (int) ($data['justjoin_category'] ?? 3));
         Setting::set('pracuj_categories', array_values($data['pracuj_categories'] ?? []) ?: Setting::DEFAULTS['pracuj_categories']);
+        Setting::set('jooble_keys', $joobleKeys);
         Setting::set('linkedin_batch_size', (int) $data['linkedin_batch_size']);
         Setting::set('linkedin_batch_pause', (int) $data['linkedin_batch_pause']);
         Setting::set('telegram_enabled', (bool) ($data['telegram_enabled'] ?? false));

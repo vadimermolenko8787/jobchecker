@@ -168,7 +168,7 @@
 
                 <div class="section-label">Источники</div>
                 <div class="chip-row">
-                    @foreach (['dou' => 'dou.ua', 'djinni' => 'djinni.co', 'justjoin' => 'justjoin.it', 'pracuj' => 'it.pracuj.pl', 'linkedin' => 'LinkedIn', 'indeed' => 'Indeed'] as $key => $label)
+                    @foreach (['dou' => 'dou.ua', 'djinni' => 'djinni.co', 'justjoin' => 'justjoin.it', 'pracuj' => 'it.pracuj.pl', 'jobico' => 'jobico.io', 'jooble' => 'jooble', 'linkedin' => 'LinkedIn', 'indeed' => 'Indeed'] as $key => $label)
                         <label class="chip"><input type="checkbox" name="sources[{{ $key }}]" value="1" @checked($settings['sources'][$key] ?? false)><span class="dot"></span>{{ $label }}</label>
                     @endforeach
                 </div>
@@ -233,7 +233,7 @@
                     <div class="field">
                         <span class="lab">Известные языки</span>
                         <input type="text" name="known_languages" value="{{ implode(', ', $settings['known_languages']) }}">
-                        <span class="help">Через запятую. Влияет на оценку: вакансии на неизвестных языках получают предупреждение и сниженный score.</span>
+                        <span class="help">Через запятую. Вакансии, написанные на других языках, отклоняются после оценки. Если роль требует неизвестный язык, score снижается.</span>
                     </div>
                 </div>
 
@@ -272,6 +272,11 @@
                                     </div>
                                 </div>
                                 <span class="help">Поиск идёт по каждой отмеченной категории. Ничего не отмечено — оба IT-раздела целиком.</span>
+                            </div>
+                            <div class="field">
+                                <span class="lab">Ключи API jooble <span class="faint">(через запятую)</span></span>
+                                <input type="text" name="jooble_keys" value="{{ collect($settings['jooble_keys'] ?? [])->map(fn ($key, $country) => $country . ':' . $key)->implode(', ') }}" autocomplete="off">
+                                <span class="help">Код сайта страны и ключ через двоеточие: <code>de:ключ, pl:ключ</code>. Ключ выдаётся на <code>&lt;код&gt;.jooble.org/api/about</code> и работает только на своём сайте. Ищется каждая страна с ключом, локации на этот источник не влияют.</span>
                             </div>
                             <div class="field"><span class="lab">LinkedIn: локаций в пачке</span><input type="number" name="linkedin_batch_size" min="1" max="10" value="{{ $settings['linkedin_batch_size'] }}" required></div>
                             <div class="field">

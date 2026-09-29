@@ -18,6 +18,16 @@ class AuthTest extends TestCase
         $this->post('/run')->assertRedirect(route('login'));
     }
 
+    public function test_run_polling_as_guest_does_not_become_the_post_login_page(): void
+    {
+        $this->getJson('/runs/latest')->assertUnauthorized();
+        $this->assertFalse(session()->has('url.intended'));
+
+        $user = User::factory()->create(['password' => 'secret-pass']);
+        $this->post('/login', ['email' => $user->email, 'password' => 'secret-pass'])
+            ->assertRedirect(route('dashboard'));
+    }
+
     public function test_login_page_renders_without_sidebar(): void
     {
         $this->get('/login')->assertOk()->assertSee('name="password"', false)->assertDontSee('side-run-btn');

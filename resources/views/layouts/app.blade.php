@@ -501,7 +501,12 @@
         var wasRunning = false;
         window.__jcOnRun = window.__jcOnRun || function () {};
         function poll() {
-            fetch(url).then(function (r) { return r.json(); }).then(function (run) {
+            // Asking for JSON makes an expired session answer 401 instead of redirecting,
+            // which would also save this endpoint as the page to return to after login.
+            fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) {
+                if (r.status === 401) { location.reload(); throw new Error('unauthenticated'); }
+                return r.json();
+            }).then(function (run) {
                 if (!run) return;
                 var running = run.status === 'running';
                 if (statusEl) {

@@ -13,7 +13,7 @@
 
         <div class="card">
             <div class="card-head"><h3>{{ __('Sign in') }}</h3></div>
-            <form method="post" action="{{ route('login.attempt') }}" class="card-body" style="display:flex;flex-direction:column;gap:14px">
+            <form method="post" action="{{ route('login.store') }}" class="card-body" style="display:flex;flex-direction:column;gap:14px">
                 @csrf
                 <label class="field">
                     <span class="lab">{{ __('Email') }}</span>

@@ -50,7 +50,7 @@ class AuthTest extends TestCase
 
         // Even the right password is refused until the lockout passes.
         $this->post('/login', ['email' => $user->email, 'password' => 'secret-pass'])
-            ->assertSessionHasErrors('email');
+            ->assertTooManyRequests();
         $this->assertGuest();
     }
 
@@ -58,8 +58,15 @@ class AuthTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
-        $this->post('/logout')->assertRedirect(route('login'));
+        $this->post('/logout')->assertRedirect('/');
         $this->assertGuest();
+    }
+
+    public function test_registration_and_password_reset_are_disabled(): void
+    {
+        $this->get('/register')->assertNotFound();
+        $this->post('/register')->assertNotFound();
+        $this->get('/forgot-password')->assertNotFound();
     }
 
     public function test_user_create_command_creates_and_resets_password(): void

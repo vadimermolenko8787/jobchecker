@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ResumeController;
@@ -9,12 +8,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\VacancyController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('guest')->group(function () {
-    Route::get('/login', [AuthController::class, 'show'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
-});
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
-
+// Login and logout routes come from Laravel Fortify (config/fortify.php).
 Route::middleware('auth')->group(function () {
     Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 

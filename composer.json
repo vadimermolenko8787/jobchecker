@@ -1,13 +1,21 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "vadimermolenko8787/jobchecker",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Self-hosted job aggregator that scores postings against your resume with Claude and writes a tailored resume and cover letter for the best matches.",
+    "keywords": [
+        "laravel",
+        "job-search",
+        "claude",
+        "ai",
+        "resume",
+        "telegram"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
         "barryvdh/laravel-dompdf": "^3.1",
+        "laravel/fortify": "^1.40",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
         "smalot/pdfparser": "^2.12",

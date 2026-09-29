@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Run;
+use App\Models\User;
 use App\Models\Vacancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,12 @@ use Tests\TestCase;
 class VacancyFilterTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(User::factory()->create());
+    }
 
     private function vacancy(array $attributes = []): Vacancy
     {
@@ -41,10 +48,10 @@ class VacancyFilterTest extends TestCase
 
     public function test_company_filter_matches_substring(): void
     {
-        $this->vacancy(['title' => 'Backend Dev', 'company' => 'Umnify GmbH']);
+        $this->vacancy(['title' => 'Backend Dev', 'company' => 'Acme GmbH']);
         $this->vacancy(['title' => 'Backend Ops', 'company' => 'Other Corp']);
 
-        $response = $this->get('/vacancies?company=umnify');
+        $response = $this->get('/vacancies?company=acme');
 
         $response->assertOk();
         $response->assertSee('Backend Dev');

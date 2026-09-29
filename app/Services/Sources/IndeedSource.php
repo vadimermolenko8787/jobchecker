@@ -6,10 +6,6 @@ use Carbon\Carbon;
 
 class IndeedSource implements JobSourceInterface
 {
-    // Indeed's own mobile-app key, publicly known via the JobSpy project.
-    // If Indeed rotates it, pull the current one from github.com/speedyapply/JobSpy.
-    private const API_KEY = '161092c2017b5bbab13edb12461a62d5a833871e7cad6d9d475304573de67ac8';
-
     private const REQUEST_DELAY_SECONDS = 1;
 
     /**
@@ -26,6 +22,10 @@ class IndeedSource implements JobSourceInterface
 
     public function fetch(array $settings, SourceHttp $http): array
     {
+        if (! config('jobchecker.indeed_api_key')) {
+            throw new \RuntimeException('INDEED_API_KEY is not set in .env');
+        }
+
         $what = implode(' ', array_slice($settings['search_keywords'] ?? [], 0, self::KEYWORD_LIMIT)) ?: 'PHP';
         $locations = array_values(($settings['locations'] ?? []) ?: ['Germany']);
 
@@ -86,7 +86,7 @@ class IndeedSource implements JobSourceInterface
 
         $response = $http->post('https://apis.indeed.com/graphql', [
             'Content-Type' => 'application/json',
-            'indeed-api-key' => self::API_KEY,
+            'indeed-api-key' => config('jobchecker.indeed_api_key'),
             'indeed-co' => $country,
             'indeed-locale' => 'en-US',
             'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Indeed App 193.1',

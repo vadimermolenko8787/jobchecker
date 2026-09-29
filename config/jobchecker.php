@@ -2,7 +2,7 @@
 
 return [
     // Path to the Claude Code CLI binary
-    'claude_bin' => env('CLAUDE_BIN', '/Users/user/.local/bin/claude'),
+    'claude_bin' => env('CLAUDE_BIN', 'claude'),
     // Model passed to `claude --model`
     'claude_model' => env('CLAUDE_MODEL', 'sonnet'),
     // Seconds before a single CLI call is killed
@@ -12,4 +12,7 @@ return [
     // Optional long-lived token (`claude setup-token`) — needed only if the
     // Keychain login is not reachable from the web-server context
     'claude_oauth_token' => env('CLAUDE_CODE_OAUTH_TOKEN'),
+    // Indeed's own mobile-app key, publicly known via the JobSpy project.
+    // If Indeed rotates it, pull the current one from github.com/speedyapply/JobSpy.
+    'indeed_api_key' => env('INDEED_API_KEY'),
 ];

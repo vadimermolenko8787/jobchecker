@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Http;
 class TelegramNotifier
 {
     private const MAX_LENGTH = 3900;
+
     private const SUMMARY_LENGTH = 600;
+
     /** Seconds getUpdates holds the connection open waiting for a press. */
     private const POLL_SECONDS = 50;
 
@@ -33,7 +35,7 @@ class TelegramNotifier
         ]);
     }
 
-    /** @return array<int, array<string, mixed>> апдейты начиная с offset */
+    /** @return array<int, array<string, mixed>> updates starting from offset */
     public function getUpdates(string $token, int $offset): array
     {
         // Long polling, because a press stays answerable for only a few seconds: a poll that
@@ -95,7 +97,7 @@ class TelegramNotifier
         $muted = $vacancy->muted_at !== null;
 
         return ['inline_keyboard' => [[[
-            'text' => $muted ? '🔔 Присылать снова' : '🔕 Не присылать',
+            'text' => $muted ? __('🔔 Send again') : __("🔕 Don't send"),
             'callback_data' => ($muted ? 'unmute:' : 'mute:') . $vacancy->id,
         ]]]];
     }
@@ -108,13 +110,13 @@ class TelegramNotifier
 
         // Without this a re-posted vacancy arrives a second time and reads as a duplicate.
         if ($vacancy->bumped_at) {
-            $lines[] = '🔁 Переопубликована источником ' . $e($vacancy->published_at?->format('d.m.Y H:i'));
+            $lines[] = __('🔁 Re-posted by the source :date', ['date' => $e($vacancy->published_at?->format('d.m.Y H:i'))]);
         }
         $companyLocation = implode(', ', array_filter([$vacancy->company, $vacancy->location]));
         if ($companyLocation !== '') {
             $lines[] = $e($companyLocation);
         }
-        $lines[] = '🌐 Источник: ' . $e($vacancy->source);
+        $lines[] = __('🌐 Source: :source', ['source' => $e($vacancy->source)]);
         if ($vacancy->salary) {
             $lines[] = '💰 ' . $e($vacancy->salary);
         }
@@ -123,7 +125,7 @@ class TelegramNotifier
         }
         if (is_array($vacancy->score_breakdown['criteria'] ?? null)) {
             $parts = [];
-            foreach (VacancyScorer::LABELS as $key => $label) {
+            foreach (VacancyScorer::labels() as $key => $label) {
                 $parts[] = $label . ' ' . (int) ($vacancy->score_breakdown['criteria'][$key]['score'] ?? 0);
             }
             $lines[] = $e(implode(' · ', $parts));
@@ -139,10 +141,10 @@ class TelegramNotifier
         if (in_array($lang['language_fit'] ?? null, ['warning', 'critical'], true)) {
             $icon = $lang['language_fit'] === 'critical' ? '‼️' : '⚠️';
             $note = trim(implode('. ', array_filter([$lang['vacancy_language'] ?? null, $lang['note'] ?? null])), ' .');
-            $lines[] = $icon . ' Язык: ' . $e($note . '.');
+            $lines[] = __(':icon Language: :note', ['icon' => $icon, 'note' => $e($note . '.')]);
         }
         $lines[] = '';
-        $lines[] = '<a href="' . $e($vacancy->url) . '">Открыть вакансию</a>';
+        $lines[] = '<a href="' . $e($vacancy->url) . '">' . __('Open the vacancy') . '</a>';
 
         return mb_substr(implode("\n", $lines), 0, self::MAX_LENGTH);
     }

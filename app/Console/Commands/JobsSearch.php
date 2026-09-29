@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 class JobsSearch extends Command
 {
     protected $signature = 'jobs:search {--trigger=manual}';
+
     protected $description = 'Fetch vacancies from all enabled sources, score them against the resume and notify about matches';
 
     public function handle(Pipeline $pipeline): int
@@ -16,7 +17,7 @@ class JobsSearch extends Command
         $this->closeStaleRuns();
 
         if (Run::active()) {
-            $this->warn('Активный запуск уже выполняется, выходим.');
+            $this->warn(__('A run is already active, exiting.'));
 
             return self::FAILURE;
         }
@@ -26,7 +27,7 @@ class JobsSearch extends Command
             'status' => 'running',
             'started_at' => now(),
         ]);
-        $run->appendLog('Запуск (' . $this->option('trigger') . ')');
+        $run->appendLog(__('Run (:trigger)', ['trigger' => $this->option('trigger')]));
 
         try {
             $pipeline->execute($run);
@@ -49,9 +50,9 @@ class JobsSearch extends Command
     private function closeStaleRuns(): void
     {
         foreach (Run::stale() as $run) {
-            $run->appendLog('Запуск прерван извне (сон машины или перезагрузка), закрыт при следующем старте.');
+            $run->appendLog(__('The run was interrupted from outside (machine sleep or reboot), closed at the next start.'));
             $run->update(['status' => 'failed', 'finished_at' => now()]);
-            $this->warn("Запуск #{$run->id} висел в running и помечен failed.");
+            $this->warn(__('Run #:id was stuck in running and was marked failed.', ['id' => $run->id]));
         }
     }
 }

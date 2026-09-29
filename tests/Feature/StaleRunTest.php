@@ -5,13 +5,14 @@ namespace Tests\Feature;
 use App\Models\Run;
 use App\Services\Pipeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class StaleRunTest extends TestCase
 {
     use RefreshDatabase;
 
-    private \PHPUnit\Framework\MockObject\MockObject $pipeline;
+    private MockObject $pipeline;
 
     protected function setUp(): void
     {

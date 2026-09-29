@@ -401,11 +401,11 @@
         <nav class="nav">
             <a href="{{ route('dashboard') }}" @class(['is-active' => request()->routeIs('dashboard')])>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-                Панель
+                {{ __('Dashboard') }}
             </a>
             <a href="{{ route('vacancies.index') }}" @class(['is-active' => request()->routeIs('vacancies.*')])>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h12"/></svg>
-                Вакансии
+                {{ __('Vacancies') }}
             </a>
         </nav>
 
@@ -414,36 +414,36 @@
                 @csrf
                 <button type="submit" class="btn btn-primary btn-block" id="side-run-btn" @unless($sidebarResume) disabled data-noresume @endunless>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-                    Запустить поиск
+                    {{ __('Start search') }}
                 </button>
             </form>
             <form method="post" action="{{ route('run.stop') }}" data-run-stop style="display:none;margin-top:8px">
                 @csrf
                 <button type="submit" class="btn btn-danger btn-block">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
-                    Остановить
+                    {{ __('Stop') }}
                 </button>
             </form>
             <div id="side-run-status" class="mono" style="font-size:12px;color:var(--faint);text-align:center;min-height:16px">
                 @if($sidebarLatestRun)
-                    посл. запуск #{{ $sidebarLatestRun->id }} · {{ $sidebarLatestRun->status }}
+                    {{ __('last run #:id · :status', ['id' => $sidebarLatestRun->id, 'status' => $sidebarLatestRun->status]) }}
                 @elseif(!$sidebarResume)
-                    сначала загрузите резюме
+                    {{ __('upload a resume first') }}
                 @endif
             </div>
         </div>
 
         <div class="side-stats" id="side-stats">
             @php $sc = $globalCounts ?? null; @endphp
-            <div class="side-stat"><div class="n">{{ $sc['total'] ?? '—' }}</div><div class="l">в базе</div></div>
+            <div class="side-stat"><div class="n">{{ $sc['total'] ?? '—' }}</div><div class="l">{{ __('in database') }}</div></div>
             <div class="side-stat"><div class="n" style="color:var(--signal)">{{ $sc['matched'] ?? '—' }}</div><div class="l">matched</div></div>
             <div class="side-stat"><div class="n" style="color:var(--ok)">{{ $sc['done'] ?? '—' }}</div><div class="l">docs</div></div>
-            <div class="side-stat"><div class="n">{{ $sc['applied'] ?? '—' }}</div><div class="l">подано</div></div>
+            <div class="side-stat"><div class="n">{{ $sc['applied'] ?? '—' }}</div><div class="l">{{ __('applied') }}</div></div>
         </div>
 
-        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Сменить тему">
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="{{ __('Toggle theme') }}">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            <span>Тема</span>
+            <span>{{ __('Theme') }}</span>
         </button>
 
         <div class="side-foot">
@@ -506,8 +506,8 @@
                 var running = run.status === 'running';
                 if (statusEl) {
                     statusEl.textContent = running
-                        ? 'запуск #' + run.id + ' идёт…'
-                        : 'посл. запуск #' + run.id + ' · ' + run.status;
+                        ? @json(__('run #:id in progress…')).replace(':id', run.id)
+                        : @json(__('last run #:id · :status')).replace(':id', run.id).replace(':status', run.status);
                     statusEl.style.color = running ? 'var(--signal)' : 'var(--faint)';
                 }
                 if (btn && !btn.hasAttribute('data-noresume')) btn.disabled = running;
@@ -534,7 +534,7 @@
                     .map(function (b) { return b.parentNode.textContent.trim(); });
                 summary.classList.toggle('-empty', picked.length === 0);
                 if (!picked.length) {
-                    summary.textContent = root.getAttribute('data-empty') || 'Ничего не выбрано';
+                    summary.textContent = root.getAttribute('data-empty') || @json(__('Nothing selected'));
                 } else if (picked.length > 3) {
                     summary.textContent = picked.slice(0, 3).join(', ') + ' +' + (picked.length - 3);
                 } else {

@@ -10,6 +10,7 @@ class DjinniSource implements JobSourceInterface
     use RssParser;
 
     private const MAX_DETAIL_FETCHES = 30;
+
     private const REQUEST_DELAY_SECONDS = 1;
 
     public function key(): string
@@ -93,8 +94,8 @@ class DjinniSource implements JobSourceInterface
         }
 
         // Without a company the vacancy can never be researched, so say how many were missed.
-        $http->log("компании определены для {$loaded} из " . count($new) . ' новых вакансий'
-            . (count($new) > self::MAX_DETAIL_FETCHES ? ' (лимит ' . self::MAX_DETAIL_FETCHES . ' за прогон)' : ''));
+        $http->log(__('companies found for :loaded of :total new vacancies', ['loaded' => $loaded, 'total' => count($new)])
+            . (count($new) > self::MAX_DETAIL_FETCHES ? __(' (limit :limit per run)', ['limit' => self::MAX_DETAIL_FETCHES]) : ''));
     }
 
     /** Company name out of the JobPosting JSON-LD the job page embeds, or its page title. */

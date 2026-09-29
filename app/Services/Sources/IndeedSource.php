@@ -22,8 +22,9 @@ class IndeedSource implements JobSourceInterface
 
     public function fetch(array $settings, SourceHttp $http): array
     {
-        if (! config('jobchecker.indeed_api_key')) {
-            throw new \RuntimeException('INDEED_API_KEY is not set in .env');
+        $apiKey = trim((string) ($settings['indeed_api_key'] ?? ''));
+        if ($apiKey === '') {
+            throw new \RuntimeException(__('Indeed API key is not set in the source settings'));
         }
 
         $what = implode(' ', array_slice($settings['search_keywords'] ?? [], 0, self::KEYWORD_LIMIT)) ?: 'PHP';
@@ -35,18 +36,19 @@ class IndeedSource implements JobSourceInterface
             $location = LocationCatalog::resolve($entry);
             if ($location['indeed'] === null) {
                 $skipped[] = $location['name'];
+
                 continue;
             }
             if ($i > 0) {
                 sleep(self::REQUEST_DELAY_SECONDS);
             }
-            foreach ($this->fetchLocation($http, $what, $location) as $vacancy) {
+            foreach ($this->fetchLocation($http, $apiKey, $what, $location) as $vacancy) {
                 $result[$vacancy->externalId] ??= $vacancy;
             }
         }
 
         if ($skipped !== []) {
-            $http->log('пропущены локации без кода страны: ' . implode(', ', $skipped));
+            $http->log(__('skipped locations without a country code: :locations', ['locations' => implode(', ', $skipped)]));
         }
 
         return array_values($result);
@@ -56,7 +58,7 @@ class IndeedSource implements JobSourceInterface
      * @param  array{name: string, indeed: ?string, host: ?string}  $location
      * @return VacancyData[]
      */
-    private function fetchLocation(SourceHttp $http, string $what, array $location): array
+    private function fetchLocation(SourceHttp $http, string $apiKey, string $what, array $location): array
     {
         $where = $location['name'];
         $country = $location['indeed'];
@@ -86,7 +88,7 @@ class IndeedSource implements JobSourceInterface
 
         $response = $http->post('https://apis.indeed.com/graphql', [
             'Content-Type' => 'application/json',
-            'indeed-api-key' => config('jobchecker.indeed_api_key'),
+            'indeed-api-key' => $apiKey,
             'indeed-co' => $country,
             'indeed-locale' => 'en-US',
             'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Indeed App 193.1',
@@ -96,7 +98,7 @@ class IndeedSource implements JobSourceInterface
         if (! $response || ! $response->successful()) {
             // Most often an unsupported country code: Indeed answers 400 for markets
             // it does not run, and the location would otherwise fail silently.
-            $http->log("«{$where}» ({$country}): " . ($response ? 'HTTP ' . $response->status() : 'запрос не удался'));
+            $http->log("«{$where}» ({$country}): " . ($response ? 'HTTP ' . $response->status() : __('request failed')));
 
             return [];
         }

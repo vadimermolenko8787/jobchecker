@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\DocumentGenerator;
 use App\Services\Sources\LocationCatalog;
 use App\Services\Sources\PracujSource;
 use App\Services\TelegramNotifier;
@@ -32,7 +33,7 @@ class SettingsController extends Controller
             'score_weights.stack' => ['required', 'integer', 'min:0', 'max:100'],
             'score_weights.seniority' => ['required', 'integer', 'min:0', 'max:100'],
             'score_weights.location' => ['required', 'integer', 'min:0', 'max:100'],
-            'cover_letter_language' => ['required', 'string', 'in:' . implode(',', array_keys(\App\Services\DocumentGenerator::LANGUAGES))],
+            'cover_letter_language' => ['required', 'string', 'in:' . implode(',', array_keys(DocumentGenerator::LANGUAGES))],
             'known_languages' => ['nullable', 'string'],
             'company_research_enabled' => ['nullable', 'boolean'],
             'company_research_ttl_days' => ['required', 'integer', 'min:1', 'max:365'],
@@ -42,18 +43,19 @@ class SettingsController extends Controller
             'pracuj_categories' => ['nullable', 'array'],
             'pracuj_categories.*' => ['string', Rule::in(array_keys(PracujSource::CATEGORIES))],
             'jooble_keys' => ['nullable', 'string'],
+            'indeed_api_key' => ['nullable', 'string', 'max:255'],
             'linkedin_batch_size' => ['required', 'integer', 'min:1', 'max:10'],
             'linkedin_batch_pause' => ['required', 'integer', 'min:0', 'max:300'],
             'telegram_enabled' => ['nullable', 'boolean'],
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
             'telegram_chat_id' => ['nullable', 'string', 'max:255'],
         ], [
-            'locations.*.in' => 'Локация :input отсутствует в справочнике.',
-            'pracuj_categories.*.in' => 'Категория :input отсутствует в справочнике it.pracuj.pl.',
+            'locations.*.in' => __('Location :input is not in the catalog.'),
+            'pracuj_categories.*.in' => __('Category :input is not in the it.pracuj.pl catalog.'),
         ]);
 
         if (! CronExpression::isValidExpression($data['cron_expression'])) {
-            return back()->with('error', 'Невалидное cron-выражение: ' . $data['cron_expression'])->withInput();
+            return back()->with('error', __('Invalid cron expression: :expression', ['expression' => $data['cron_expression']]))->withInput();
         }
 
         $weights = array_map(
@@ -61,7 +63,7 @@ class SettingsController extends Controller
             array_combine(VacancyScorer::CRITERIA, VacancyScorer::CRITERIA),
         );
         if (array_sum($weights) === 0) {
-            return back()->with('error', 'Хотя бы один вес критерия должен быть больше нуля.')->withInput();
+            return back()->with('error', __('At least one criterion weight must be above zero.'))->withInput();
         }
 
         $csv = fn (?string $value) => array_values(array_filter(array_map('trim', explode(',', (string) $value))));
@@ -70,7 +72,7 @@ class SettingsController extends Controller
         $joobleKeys = [];
         foreach ($csv($data['jooble_keys'] ?? null) as $entry) {
             if (! preg_match('/^([a-z]{2})\s*:\s*([A-Za-z0-9-]+)$/i', $entry, $m)) {
-                return back()->with('error', 'Ключ jooble записывается как код страны и ключ через двоеточие, например de:xxxxxxxx.')->withInput();
+                return back()->with('error', __('A jooble key is written as a country code and the key separated by a colon, for example de:xxxxxxxx.'))->withInput();
             }
             $joobleKeys[strtolower($m[1])] = $m[2];
         }
@@ -102,13 +104,14 @@ class SettingsController extends Controller
         Setting::set('justjoin_category', (int) ($data['justjoin_category'] ?? 3));
         Setting::set('pracuj_categories', array_values($data['pracuj_categories'] ?? []) ?: Setting::DEFAULTS['pracuj_categories']);
         Setting::set('jooble_keys', $joobleKeys);
+        Setting::set('indeed_api_key', trim((string) ($data['indeed_api_key'] ?? '')));
         Setting::set('linkedin_batch_size', (int) $data['linkedin_batch_size']);
         Setting::set('linkedin_batch_pause', (int) $data['linkedin_batch_pause']);
         Setting::set('telegram_enabled', (bool) ($data['telegram_enabled'] ?? false));
         Setting::set('telegram_bot_token', trim((string) ($data['telegram_bot_token'] ?? '')));
         Setting::set('telegram_chat_id', trim((string) ($data['telegram_chat_id'] ?? '')));
 
-        return back()->with('status', 'Настройки сохранены.');
+        return back()->with('status', __('Settings saved.'));
     }
 
     public function telegramTest(TelegramNotifier $telegram)
@@ -117,15 +120,15 @@ class SettingsController extends Controller
         $chatId = (string) Setting::get('telegram_chat_id');
 
         if ($token === '' || $chatId === '') {
-            return back()->with('error', 'Сначала сохраните bot token и chat ID.');
+            return back()->with('error', __('Save the bot token and chat ID first.'));
         }
 
         try {
-            $telegram->sendText($token, $chatId, 'JobChecker: тестовое сообщение ✅');
+            $telegram->sendText($token, $chatId, __('JobChecker: test message ✅'));
         } catch (\Throwable $e) {
-            return back()->with('error', 'Не удалось отправить: ' . $e->getMessage());
+            return back()->with('error', __('Could not send: :error', ['error' => $e->getMessage()]));
         }
 
-        return back()->with('status', 'Тестовое сообщение отправлено.');
+        return back()->with('status', __('Test message sent.'));
     }
 }

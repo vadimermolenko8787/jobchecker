@@ -4,7 +4,7 @@
 
 @section('content')
     <div style="margin-bottom:18px">
-        <a href="{{ route('vacancies.index') }}" class="muted" style="font-size:13px">← к списку вакансий</a>
+        <a href="{{ route('vacancies.index') }}" class="muted" style="font-size:13px">← {{ __('back to vacancies') }}</a>
     </div>
 
     <div class="card">
@@ -14,13 +14,13 @@
                     <div class="stack" style="margin-bottom:10px">
                         <span class="badge -{{ $vacancy->status }}">{{ $vacancy->status }}</span>
                         @if ($vacancy->bumped_at)
-                            <span class="badge -bumped" title="Источник переопубликовал вакансию, она заново прошла оценку">↑ поднята {{ $vacancy->bumped_at->format('d.m.Y H:i') }}</span>
+                            <span class="badge -bumped" title="{{ __('The source republished this vacancy, it was scored again') }}">↑ {{ __('bumped :time', ['time' => $vacancy->bumped_at->format('d.m.Y H:i')]) }}</span>
                         @endif
                         @if ($vacancy->applied_at)
-                            <span class="badge -solid">✓ подано {{ $vacancy->applied_at->format('d.m.Y') }}</span>
+                            <span class="badge -solid">✓ {{ __('applied :date', ['date' => $vacancy->applied_at->format('d.m.Y')]) }}</span>
                         @endif
                         @if ($vacancy->muted_at)
-                            <span class="badge -neutral" title="Эта вакансия не уходит в Telegram, включая её копии с других источников">🔕 не слать в Telegram</span>
+                            <span class="badge -neutral" title="{{ __('This vacancy is not sent to Telegram, nor are its copies from other sources') }}">🔕 {{ __('muted in Telegram') }}</span>
                         @endif
                     </div>
                     <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
@@ -29,14 +29,14 @@
                             <form method="post" action="{{ route('vacancies.muted', $vacancy) }}">
                                 @csrf
                                 <button type="submit" class="btn btn-sm {{ $vacancy->muted_at ? 'btn-ghost' : '' }}"
-                                        title="Вакансия и её копии с других источников не будут приходить в Telegram">
-                                    {{ $vacancy->muted_at ? '🔔 Присылать в Telegram' : '🔕 Не присылать в Telegram' }}
+                                        title="{{ __('The vacancy and its copies from other sources will not be sent to Telegram') }}">
+                                    {{ $vacancy->muted_at ? '🔔 ' . __('Send to Telegram') : '🔕 ' . __('Do not send to Telegram') }}
                                 </button>
                             </form>
                             <form method="post" action="{{ route('vacancies.applied', $vacancy) }}">
                                 @csrf
                                 <button type="submit" class="btn btn-sm {{ $vacancy->applied_at ? 'btn-ghost' : 'btn-ok' }}">
-                                    {{ $vacancy->applied_at ? 'Снять отметку о подаче' : '✓ Отметить: подал' }}
+                                    {{ $vacancy->applied_at ? __('Clear the applied mark') : '✓ ' . __('Mark as applied') }}
                                 </button>
                             </form>
                         </div>
@@ -51,14 +51,14 @@
                     </div>
                     <div style="margin-top:16px">
                         <a href="{{ $vacancy->url }}" target="_blank" rel="noopener" class="btn btn-sm">
-                            Открыть на сайте
+                            {{ __('Open on the site') }}
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
                         </a>
                     </div>
                 </div>
                 @if ($vacancy->score !== null)
                     <div style="text-align:center">
-                        <div class="eyebrow" style="margin-bottom:8px">Совпадение</div>
+                        <div class="eyebrow" style="margin-bottom:8px">{{ __('Match') }}</div>
                         @include('partials.meter', ['score' => $vacancy->score, 'lg' => true])
                     </div>
                 @endif
@@ -68,12 +68,12 @@
             @if (is_array($bd['criteria'] ?? null))
                 @php($shares = app(\App\Services\VacancyScorer::class)->normalizeWeights($bd['weights'] ?? []))
                 <div class="rubric">
-                    @foreach (\App\Services\VacancyScorer::LABELS as $key => $label)
+                    @foreach (\App\Services\VacancyScorer::labels() as $key => $label)
                         @php($c = $bd['criteria'][$key] ?? ['score' => 0, 'matched' => [], 'missing' => []])
                         @php($n = max(0, min(10, (int) ($c['score'] ?? 0))))
                         @php($color = $n >= 8 ? 'var(--ok)' : ($n >= 6 ? 'var(--signal)' : ($n >= 4 ? 'var(--info)' : 'var(--neutral)')))
                         <div class="rubric-row">
-                            <span class="rl">{{ $label }}<small>вес {{ round($shares[$key] * 100) }}%</small></span>
+                            <span class="rl">{{ $label }}<small>{{ __('weight :percent%', ['percent' => round($shares[$key] * 100)]) }}</small></span>
                             <span class="rv" style="color:{{ $color }}">{{ $n }}/10</span>
                             <span class="track"><span class="fill" style="width:{{ $n * 10 }}%;background:{{ $color }}"></span></span>
                             @if (! empty($c['matched']) || ! empty($c['missing']))
@@ -82,7 +82,7 @@
                                         <span class="-yes">{{ $item }}</span>
                                     @endforeach
                                     @foreach ($c['missing'] ?? [] as $item)
-                                        <span>нет: {{ $item }}</span>
+                                        <span>{{ __('missing: :item', ['item' => $item]) }}</span>
                                     @endforeach
                                 </span>
                             @endif
@@ -91,15 +91,15 @@
                 </div>
                 @php($notes = [])
                 @if (($bd['language_fit'] ?? null) === 'critical')
-                    @php($notes[] = 'языковой барьер критичен: score ограничен 40')
+                    @php($notes[] = __('critical language barrier: score capped at 40'))
                 @elseif (($bd['language_fit'] ?? null) === 'warning')
-                    @php($notes[] = 'языковой барьер: −15 к взвешенной сумме (' . ($bd['base_score'] ?? '?') . ')')
+                    @php($notes[] = __('language barrier: −15 from the weighted sum (:base)', ['base' => $bd['base_score'] ?? '?']))
                 @endif
                 @if ($bd['foreign_language'] ?? null)
-                    @php($notes[] = 'отклонена: язык вакансии ' . $bd['foreign_language'] . ' не входит в известные языки')
+                    @php($notes[] = __('rejected: the vacancy language :language is not among the known languages', ['language' => $bd['foreign_language']]))
                 @endif
                 @if ($bd['rechecked'] ?? false)
-                    @php($notes[] = 'перепроверено: ' . implode(' / ', $bd['run_scores'] ?? []) . ' → итог ' . $vacancy->score)
+                    @php($notes[] = __('rechecked: :scores → final :score', ['scores' => implode(' / ', $bd['run_scores'] ?? []), 'score' => $vacancy->score]))
                 @endif
                 @if ($notes)
                     <div class="faint mono" style="font-size:12px;margin-top:12px">{{ implode(' · ', $notes) }}</div>
@@ -122,10 +122,10 @@
             @if ($lang)
                 <div class="stack" style="margin-top:12px;flex-wrap:wrap">
                     @if ($lang['vacancy_language'] ?? null)
-                        <span class="tag">Язык вакансии: {{ $lang['vacancy_language'] }}</span>
+                        <span class="tag">{{ __('Vacancy language: :language', ['language' => $lang['vacancy_language']]) }}</span>
                     @endif
                     @if (! empty($lang['required_languages']))
-                        <span class="tag">Требуются: {{ implode(', ', $lang['required_languages']) }}</span>
+                        <span class="tag">{{ __('Required: :languages', ['languages' => implode(', ', $lang['required_languages'])]) }}</span>
                     @endif
                 </div>
                 @if (in_array($lang['language_fit'] ?? null, ['warning', 'critical'], true) && ($lang['note'] ?? ''))
@@ -139,16 +139,16 @@
     </div>
 
     @if ($generationError)
-        <div class="flash -err" style="margin-top:20px">Последняя генерация не удалась: {{ $generationError }}</div>
+        <div class="flash -err" style="margin-top:20px">{{ __('The last generation failed: :error', ['error' => $generationError]) }}</div>
     @endif
 
     <div class="card">
-        <div class="card-head"><h3>Документы</h3></div>
+        <div class="card-head"><h3>{{ __('Documents') }}</h3></div>
         <div class="card-body">
             @if ($generating)
                 <div class="stack scanning" style="padding:16px;border-radius:8px;background:var(--raised)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--signal)" stroke-width="2" style="animation:pulse 1.1s infinite"><circle cx="12" cy="12" r="9"/></svg>
-                    <span>Идёт генерация ({{ $generating === 'both' ? 'резюме и cover letter' : ($generating === 'resume' ? 'резюме' : 'cover letter') }})… страница обновится сама.</span>
+                    <span>{{ __('Generating :what… the page will refresh by itself.', ['what' => $generating === 'both' ? __('resume and cover letter') : ($generating === 'resume' ? __('resume') : 'cover letter')]) }}</span>
                 </div>
                 <script>setInterval(function(){location.reload();}, 8000);</script>
             @else
@@ -158,7 +158,7 @@
                     <form method="post" action="{{ route('vacancies.generate', [$vacancy, 'resume']) }}">
                         @csrf
                         <button type="submit" class="btn btn-sm btn-info" @unless($hasResume) disabled @endunless>
-                            {{ $vacancy->resume_path ? 'Перегенерировать резюме' : 'Сгенерировать резюме' }}
+                            {{ $vacancy->resume_path ? __('Regenerate resume') : __('Generate resume') }}
                         </button>
                     </form>
                     <form method="post" action="{{ route('vacancies.generate', [$vacancy, 'cover_letter']) }}"
@@ -166,39 +166,39 @@
                         @csrf
                         <div class="stack" style="gap:8px">
                             <button type="submit" class="btn btn-sm btn-primary" @unless($hasResume) disabled @endunless>
-                                {{ $vacancy->cover_letter_path ? 'Перегенерировать cover letter' : 'Сгенерировать cover letter' }}
+                                {{ $vacancy->cover_letter_path ? __('Regenerate cover letter') : __('Generate cover letter') }}
                             </button>
                             <select name="lang" style="width:auto;padding:6px 10px;font-size:12.5px">
-                                @foreach (\App\Services\DocumentGenerator::LANGUAGE_LABELS as $code => $label)
+                                @foreach (\App\Services\DocumentGenerator::languageLabels() as $code => $label)
                                     <option value="{{ $code }}" @selected(\App\Models\Setting::get('cover_letter_language') === $code)>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <textarea name="extra_instructions" rows="2" maxlength="2000" style="padding:6px 10px;font-size:12.5px"
-                                  placeholder="Дополнительные инструкции (необязательно): на что сделать упор, что не упоминать…">{{ old('extra_instructions') }}</textarea>
+                                  placeholder="{{ __('Extra instructions (optional): what to emphasize, what to leave out…') }}">{{ old('extra_instructions') }}</textarea>
                     </form>
                 </div>
-                @unless($hasResume)<div class="faint" style="font-size:12.5px;margin-top:10px">Загрузите базовое резюме на панели, чтобы генерировать документы.</div>@endunless
+                @unless($hasResume)<div class="faint" style="font-size:12.5px;margin-top:10px">{{ __('Upload a base resume on the dashboard to generate documents.') }}</div>@endunless
             @endif
         </div>
     </div>
 
     <div class="card">
         <div class="card-head">
-            <h3>О компании</h3>
+            <h3>{{ __('About the company') }}</h3>
             @if ($company?->researched_at)
-                <span class="hint">обновлено {{ $company->researched_at->format('d.m.Y H:i') }}</span>
+                <span class="hint">{{ __('updated :time', ['time' => $company->researched_at->format('d.m.Y H:i')]) }}</span>
             @endif
         </div>
         <div class="card-body">
             @if ($company?->last_error && ! $companyResearching)
-                <div class="flash -err">Последнее исследование не удалось: {{ $company->last_error }}</div>
+                <div class="flash -err">{{ __('The last research failed: :error', ['error' => $company->last_error]) }}</div>
             @endif
 
             @if ($companyResearching)
                 <div class="stack scanning" style="padding:16px;border-radius:8px;background:var(--raised)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--signal)" stroke-width="2" style="animation:pulse 1.1s infinite"><circle cx="12" cy="12" r="9"/></svg>
-                    <span>Идёт исследование компании (1-3 минуты)… страница обновится сама.</span>
+                    <span>{{ __('Researching the company (1-3 minutes)… the page will refresh by itself.') }}</span>
                 </div>
                 @unless ($generating)
                     <script>setInterval(function(){location.reload();}, 8000);</script>
@@ -209,19 +209,19 @@
                     <p style="margin-top:0;font-size:14px;line-height:1.6">{{ $r['company_info'] }}</p>
                 @endif
                 @if (($r['found'] ?? false) === false)
-                    <div class="faint" style="font-size:13px;margin-bottom:14px">Достоверной информации о компании найти не удалось.</div>
+                    <div class="faint" style="font-size:13px;margin-bottom:14px">{{ __('No reliable information about the company was found.') }}</div>
                 @endif
 
                 @php($aspectMeta = [
-                    'turnover' => ['label' => 'Текучка', 'values' => ['low' => ['низкая', '-ok'], 'medium' => ['средняя', '-neutral'], 'high' => ['высокая', '-failed']]],
-                    'work_life_balance' => ['label' => 'Work-life balance', 'values' => ['good' => ['хороший', '-ok'], 'mixed' => ['смешанный', '-neutral'], 'poor' => ['плохой', '-failed']]],
-                    'ceo' => ['label' => 'Отношение к руководству', 'values' => ['positive' => ['позитивное', '-ok'], 'mixed' => ['смешанное', '-neutral'], 'negative' => ['негативное', '-failed']]],
-                    'compensation' => ['label' => 'Компенсация', 'values' => ['above_market' => ['выше рынка', '-ok'], 'market' => ['в рынке', '-neutral'], 'below_market' => ['ниже рынка', '-failed']]],
+                    'turnover' => ['label' => __('Turnover'), 'values' => ['low' => [__('low'), '-ok'], 'medium' => [__('medium'), '-neutral'], 'high' => [__('high'), '-failed']]],
+                    'work_life_balance' => ['label' => 'Work-life balance', 'values' => ['good' => [__('good'), '-ok'], 'mixed' => [__('mixed'), '-neutral'], 'poor' => [__('poor'), '-failed']]],
+                    'ceo' => ['label' => __('Attitude to management'), 'values' => ['positive' => [__('positive'), '-ok'], 'mixed' => [__('ambivalent'), '-neutral'], 'negative' => [__('negative'), '-failed']]],
+                    'compensation' => ['label' => __('Compensation'), 'values' => ['above_market' => [__('above market'), '-ok'], 'market' => [__('at market'), '-neutral'], 'below_market' => [__('below market'), '-failed']]],
                 ])
                 <div style="display:grid;gap:10px;margin-bottom:16px">
                     @foreach ($aspectMeta as $key => $meta)
                         @php($aspect = $r['aspects'][$key] ?? [])
-                        @php([$valueLabel, $badgeClass] = $meta['values'][$aspect['assessment'] ?? 'unknown'] ?? ['неизвестно', '-neutral'])
+                        @php([$valueLabel, $badgeClass] = $meta['values'][$aspect['assessment'] ?? 'unknown'] ?? [__('unknown'), '-neutral'])
                         <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
                             <span style="font-weight:600;font-size:13.5px;min-width:190px">{{ $meta['label'] }}</span>
                             <span class="badge {{ $badgeClass }}">{{ $valueLabel }}@if ($key === 'ceo' && ($aspect['approval_percent'] ?? null) !== null) · {{ $aspect['approval_percent'] }}%@endif</span>
@@ -234,15 +234,15 @@
 
                 @if (! empty($r['sources']))
                     <details class="box" style="margin-bottom:16px">
-                        <summary>Источники ({{ count($r['sources']) }})</summary>
+                        <summary>{{ __('Sources (:count)', ['count' => count($r['sources'])]) }}</summary>
                         <div class="details-body">
                             @foreach ($r['sources'] as $source)
                                 <div style="margin-bottom:14px">
                                     <div class="stack" style="flex-wrap:wrap">
                                         <span style="font-weight:600;font-size:13.5px">{{ $source['name'] ?? '' }}</span>
                                         @if (($source['rating'] ?? null) !== null)<span class="mono" style="color:var(--signal);font-size:13px">{{ $source['rating'] }}/5</span>@endif
-                                        @if (($source['reviews_count'] ?? null) !== null)<span class="faint" style="font-size:12.5px">{{ $source['reviews_count'] }} отзывов</span>@endif
-                                        @if ($source['url'] ?? null)<a href="{{ $source['url'] }}" target="_blank" rel="noopener" style="font-size:12.5px">открыть ↗</a>@endif
+                                        @if (($source['reviews_count'] ?? null) !== null)<span class="faint" style="font-size:12.5px">{{ trans_choice(':count review|:count reviews', $source['reviews_count']) }}</span>@endif
+                                        @if ($source['url'] ?? null)<a href="{{ $source['url'] }}" target="_blank" rel="noopener" style="font-size:12.5px">{{ __('open') }} ↗</a>@endif
                                     </div>
                                     @if (! empty($source['key_points']))
                                         <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.6;color:var(--muted)">
@@ -265,18 +265,18 @@
 
                 <form method="post" action="{{ route('vacancies.research-company', $vacancy) }}">
                     @csrf
-                    <button type="submit" class="btn btn-sm">Обновить исследование</button>
+                    <button type="submit" class="btn btn-sm">{{ __('Refresh research') }}</button>
                 </form>
             @else
                 <form method="post" action="{{ route('vacancies.research-company', $vacancy) }}">
                     @csrf
                     <div class="stack">
-                        <button type="submit" class="btn btn-sm btn-primary" @unless($vacancy->company) disabled @endunless>Исследовать компанию</button>
+                        <button type="submit" class="btn btn-sm btn-primary" @unless($vacancy->company) disabled @endunless>{{ __('Research the company') }}</button>
                         <span class="faint" style="font-size:12px;max-width:340px">
                             @if ($vacancy->company)
-                                Поиск отзывов сотрудников на Glassdoor, Indeed, DOU и др. Займёт 1-3 минуты.
+                                {{ __('Looks for employee reviews on Glassdoor, Indeed, DOU and others. Takes 1-3 minutes.') }}
                             @else
-                                У вакансии не указана компания.
+                                {{ __('The vacancy has no company.') }}
                             @endif
                         </span>
                     </div>
@@ -286,7 +286,7 @@
     </div>
 
     <details class="box" open style="margin-top:20px">
-        <summary>Описание вакансии</summary>
+        <summary>{{ __('Vacancy description') }}</summary>
         <div class="details-body">
             <div class="markdown-box">{!! Str::of((string) $vacancy->description)->stripTags('<p><br><ul><ol><li><b><strong><i><em><h1><h2><h3><h4><a>') !!}</div>
         </div>
@@ -294,11 +294,11 @@
 
     @if ($resumeMd)
         <details class="box" open>
-            <summary>Адаптированное резюме</summary>
+            <summary>{{ __('Tailored resume') }}</summary>
             <div class="details-body">
                 <div class="stack" style="margin-bottom:12px">
-                    <a href="{{ route('vacancies.download', [$vacancy, 'resume', 'pdf']) }}" class="btn btn-sm">Скачать .pdf</a>
-                    <a href="{{ route('vacancies.download', [$vacancy, 'resume']) }}" class="btn btn-sm btn-ghost">Исходник ({{ $resumeIsHtml ? '.html' : '.md' }})</a>
+                    <a href="{{ route('vacancies.download', [$vacancy, 'resume', 'pdf']) }}" class="btn btn-sm">{{ __('Download :ext', ['ext' => '.pdf']) }}</a>
+                    <a href="{{ route('vacancies.download', [$vacancy, 'resume']) }}" class="btn btn-sm btn-ghost">{{ __('Source (:ext)', ['ext' => $resumeIsHtml ? '.html' : '.md']) }}</a>
                 </div>
                 @if ($resumeIsHtml)
                     <iframe src="{{ route('vacancies.preview-resume', $vacancy) }}" style="width:100%;height:700px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe>
@@ -314,8 +314,8 @@
             <summary>Cover letter</summary>
             <div class="details-body">
                 <div class="stack" style="margin-bottom:12px">
-                    <a href="{{ route('vacancies.download', [$vacancy, 'cover_letter', 'pdf']) }}" class="btn btn-sm">Скачать .pdf</a>
-                    <a href="{{ route('vacancies.download', [$vacancy, 'cover_letter']) }}" class="btn btn-sm btn-ghost">Скачать .md</a>
+                    <a href="{{ route('vacancies.download', [$vacancy, 'cover_letter', 'pdf']) }}" class="btn btn-sm">{{ __('Download :ext', ['ext' => '.pdf']) }}</a>
+                    <a href="{{ route('vacancies.download', [$vacancy, 'cover_letter']) }}" class="btn btn-sm btn-ghost">{{ __('Download :ext', ['ext' => '.md']) }}</a>
                 </div>
                 <div class="markdown-box">{!! Str::markdown($coverMd, ['html_input' => 'strip']) !!}</div>
             </div>

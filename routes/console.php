@@ -7,7 +7,7 @@ try {
     $enabled = (bool) Setting::get('schedule_enabled');
     $expression = (string) Setting::get('cron_expression');
     $telegram = (bool) Setting::get('telegram_enabled');
-} catch (\Throwable) {
+} catch (Throwable) {
     // DB not migrated yet (e.g. during composer install) — no schedule.
     $enabled = false;
     $expression = '';

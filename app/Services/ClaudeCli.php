@@ -42,8 +42,7 @@ class ClaudeCli
 
         if ($result !== null && str_contains($result, 'Not logged in')) {
             throw new \RuntimeException(
-                'claude CLI не авторизован. Выполните в терминале `claude /login`, '
-                . 'либо создайте токен через `claude setup-token` и добавьте его в .env как CLAUDE_CODE_OAUTH_TOKEN.',
+                __('claude CLI is not logged in. Run `claude /login` in a terminal, or create a token with `claude setup-token` and add it to .env as CLAUDE_CODE_OAUTH_TOKEN.'),
             );
         }
         if (! $process->isSuccessful() || $result === null || ! empty($payload['is_error'])) {

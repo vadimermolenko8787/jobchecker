@@ -29,7 +29,7 @@ class JobicoSource implements JobSourceInterface
         libxml_use_internal_errors($prev);
         // One request is the whole source, so a broken feed must not pass for "nothing found".
         if ($doc === false || $doc->getName() !== 'source') {
-            throw new \RuntimeException('фид ' . self::FEED . ' не отвечает ожидаемым XML, вакансии не получены');
+            throw new \RuntimeException(__('feed :feed does not answer with the expected XML, no vacancies received', ['feed' => self::FEED]));
         }
 
         // The same three keywords the searchable sources query with, matched as whole words.

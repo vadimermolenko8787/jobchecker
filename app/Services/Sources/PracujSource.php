@@ -20,7 +20,14 @@ class PracujSource implements JobSourceInterface
 
     /** Offers per page the endpoint returns, and how many pages one query is worth. */
     private const PAGE_SIZE = 50;
+
     private const MAX_PAGES = 3;
+
+    /** @return array<int, string> code => caption in the current locale */
+    public static function categoryLabels(): array
+    {
+        return array_map(fn (string $label) => __($label), self::CATEGORIES);
+    }
 
     /** Both IT sections, i.e. everything it.pracuj.pl itself lists. */
     private const SECTIONS = [5016, 5015];
@@ -28,24 +35,24 @@ class PracujSource implements JobSourceInterface
     /**
      * Search categories offered in the settings multiselect: the two IT sections
      * it.pracuj.pl itself accepts, plus their subcategories. The key is what goes
-     * into `cc`, the value is the Russian caption, following LocationCatalog.
+     * into `cc`, the value is the English caption, translated by categoryLabels().
      */
     public const CATEGORIES = [
-        5016 => 'IT-разработка — весь раздел',
-        5016003 => 'IT-разработка: программирование',
-        5016002 => 'IT-разработка: архитектура',
-        5016001 => 'IT-разработка: бизнес- и системный анализ',
-        5016004 => 'IT-разработка: тестирование',
-        5016005 => 'IT-разработка: управление проектом и продуктом',
-        5016006 => 'IT-разработка: UX/UI-дизайн',
-        5015 => 'IT-администрирование — весь раздел',
-        5015001 => 'IT-администрирование: базы данных и хранилища',
-        5015002 => 'IT-администрирование: сети',
-        5015003 => 'IT-администрирование: системы',
-        5015004 => 'IT-администрирование: безопасность и аудит',
-        5015005 => 'IT-администрирование: внедрение ERP',
-        5015006 => 'IT-администрирование: техподдержка и helpdesk',
-        5015007 => 'IT-администрирование: управление услугами',
+        5016 => 'IT development, whole section',
+        5016003 => 'IT development: programming',
+        5016002 => 'IT development: architecture',
+        5016001 => 'IT development: business and system analysis',
+        5016004 => 'IT development: testing',
+        5016005 => 'IT development: project and product management',
+        5016006 => 'IT development: UX/UI design',
+        5015 => 'IT administration, whole section',
+        5015001 => 'IT administration: databases and storage',
+        5015002 => 'IT administration: networks',
+        5015003 => 'IT administration: systems',
+        5015004 => 'IT administration: security and audit',
+        5015005 => 'IT administration: ERP implementation',
+        5015006 => 'IT administration: tech support and helpdesk',
+        5015007 => 'IT administration: service management',
     ];
 
     public function key(): string
@@ -168,9 +175,9 @@ class PracujSource implements JobSourceInterface
         // Narrow on purpose: the captured host is quoted back at the operator as the one
         // to put into the code, so anything but a pracuj.pl host is not worth repeating.
         if (preg_match('~"API_CLIENT_GATEWAY":"(https://[a-z0-9.-]+\.pracuj\.pl)"~', $body, $m) && $m[1] !== self::GATEWAY) {
-            return 'шлюз сменился: ' . self::GATEWAY . " → {$m[1]}, поправьте PracujSource::GATEWAY";
+            return __('gateway changed: :old → :new, update PracujSource::GATEWAY', ['old' => self::GATEWAY, 'new' => $m[1]]);
         }
 
-        return 'шлюз ' . self::GATEWAY . ' не отвечает ожидаемым JSON, вакансии не получены';
+        return __('gateway :gateway does not answer with the expected JSON, no vacancies received', ['gateway' => self::GATEWAY]);
     }
 }

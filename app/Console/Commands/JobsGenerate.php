@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 class JobsGenerate extends Command
 {
     protected $signature = 'jobs:generate {vacancy} {--doc=both : resume | cover_letter | both} {--lang= : cover letter language code} {--instructions= : extra instructions for the cover letter}';
+
     protected $description = 'Generate an adapted resume and/or cover letter for a single vacancy via Claude CLI';
 
     public function handle(DocumentGenerator $generator): int
@@ -18,13 +19,13 @@ class JobsGenerate extends Command
         $vacancy = Vacancy::query()->findOrFail($this->argument('vacancy'));
         $resume = Resume::active();
         if (! $resume) {
-            $this->error('Активное резюме не найдено.');
+            $this->error(__('No active resume found.'));
 
             return self::FAILURE;
         }
         $doc = $this->option('doc');
         if (! in_array($doc, ['resume', 'cover_letter', 'both'], true)) {
-            $this->error("Неизвестный документ: {$doc}");
+            $this->error(__('Unknown document: :doc', ['doc' => $doc]));
 
             return self::FAILURE;
         }

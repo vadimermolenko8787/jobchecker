@@ -20,11 +20,11 @@ class ResumeController extends Controller
         try {
             $text = (new Parser)->parseFile($file->getRealPath())->getText();
         } catch (\Throwable $e) {
-            return back()->with('error', 'Не удалось извлечь текст из PDF: ' . $e->getMessage());
+            return back()->with('error', __('Could not extract text from the PDF: :error', ['error' => $e->getMessage()]));
         }
         $text = trim(preg_replace('/[ \t]+/', ' ', $text));
         if ($text === '') {
-            return back()->with('error', 'PDF не содержит извлекаемого текста (возможно, это скан).');
+            return back()->with('error', __('The PDF has no extractable text (it may be a scan).'));
         }
 
         $keywords = [];
@@ -32,7 +32,7 @@ class ResumeController extends Controller
         try {
             $answer = $claude->json(
                 "Here is a resume. Extract the candidate's tech stack as 5-8 short search keywords "
-                . "(technologies/frameworks, e.g. \"PHP\", \"Laravel\", \"Vue.js\"), ordered by importance. "
+                . '(technologies/frameworks, e.g. "PHP", "Laravel", "Vue.js"), ordered by importance. '
                 . "Respond with ONLY a JSON array of strings.\n\nRESUME:\n" . $text,
                 timeout: 180,
             );
@@ -41,7 +41,7 @@ class ResumeController extends Controller
                 is_array($answer) ? $answer : [],
             )));
         } catch (\Throwable $e) {
-            $warning = 'Claude не смог извлечь ключевые слова: ' . $e->getMessage();
+            $warning = __('Claude could not extract keywords: :error', ['error' => $e->getMessage()]);
         }
 
         Resume::query()->update(['is_active' => false]);
@@ -59,7 +59,7 @@ class ResumeController extends Controller
 
         return back()->with(
             $warning ? 'error' : 'status',
-            $warning ?? 'Резюме загружено. Ключевые слова: ' . implode(', ', $keywords),
+            $warning ?? __('Resume uploaded. Keywords: :keywords', ['keywords' => implode(', ', $keywords)]),
         );
     }
 }

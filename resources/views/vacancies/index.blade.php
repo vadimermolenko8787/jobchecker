@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Вакансии')
+@section('title', __('Vacancies'))
 @section('page-class', '-wide')
 
 @php
@@ -24,11 +24,11 @@
     <div class="page-head">
         <div>
             <div class="eyebrow">
-                {{ $vacancies->total() }} записей
-                @if ($activeFilters)<span style="color:var(--signal)">· по фильтру</span>@endif
+                {{ trans_choice(':count record|:count records', $vacancies->total()) }}
+                @if ($activeFilters)<span style="color:var(--signal)">· {{ __('filtered') }}</span>@endif
             </div>
-            <h1>Вакансии</h1>
-            <div class="sub">Отсортированы по совпадению с вашим резюме.</div>
+            <h1>{{ __('Vacancies') }}</h1>
+            <div class="sub">{{ __('Sorted by how well they match your resume.') }}</div>
         </div>
     </div>
 
@@ -36,11 +36,11 @@
         <div class="segment">
             @php
                 $tabs = [
-                    '' => ['все', 'Все вакансии'],
-                    'new' => ['new', 'Из последнего запуска'],
-                    'matched' => ['matched', 'Прошли порог совпадения'],
-                    'done' => ['done', 'С готовыми документами'],
-                    'rejected' => ['rejected', 'Ниже порога совпадения'],
+                    '' => [__('all'), __('All vacancies')],
+                    'new' => ['new', __('From the latest run')],
+                    'matched' => ['matched', __('Passed the match threshold')],
+                    'done' => ['done', __('With generated documents')],
+                    'rejected' => ['rejected', __('Below the match threshold')],
                 ];
             @endphp
             @foreach ($tabs as $key => [$label, $hint])
@@ -50,15 +50,15 @@
             @endforeach
         </div>
         @if ($activeFilters)
-            <a class="btn btn-sm" href="{{ route('vacancies.index', $carried) }}">Сбросить фильтры</a>
+            <a class="btn btn-sm" href="{{ route('vacancies.index', $carried) }}">{{ __('Reset filters') }}</a>
         @endif
     </div>
 
     @php
         $columns = [
-            'score' => 'Score', 'title' => 'Вакансия', 'company' => 'Компания',
-            'source' => 'Источник', 'location' => 'Локация', 'status' => 'Статус',
-            'date' => 'Дата', 'applied' => 'Подача', 'muted' => 'Telegram',
+            'score' => 'Score', 'title' => __('Vacancy'), 'company' => __('Company'),
+            'source' => __('Source'), 'location' => __('Location'), 'status' => __('Status'),
+            'date' => __('Date'), 'applied' => __('Application'), 'muted' => 'Telegram',
         ];
     @endphp
 
@@ -86,11 +86,11 @@
                 <th></th>
                 <th>
                     <input type="text" class="f-in" form="vac-filters" name="q" value="{{ $filters['q'] }}" size="1"
-                           placeholder="название…" aria-label="Фильтр по названию вакансии" autocomplete="off">
+                           placeholder="{{ __('title…') }}" aria-label="{{ __('Filter by vacancy title') }}" autocomplete="off">
                 </th>
                 <th>
                     <input type="text" class="f-in" form="vac-filters" name="company" value="{{ $filters['company'] }}" size="1"
-                           placeholder="компания…" aria-label="Фильтр по компании" autocomplete="off" list="company-options">
+                           placeholder="{{ __('company…') }}" aria-label="{{ __('Filter by company') }}" autocomplete="off" list="company-options">
                     <datalist id="company-options">
                         @foreach ($companies as $companyName)
                             <option value="{{ $companyName }}"></option>
@@ -102,7 +102,7 @@
                     @if (count($sources))
                         {{-- The button is named by its own summary text, so no aria-label here:
                              it would hide the current selection from screen readers. --}}
-                        <div class="multiselect -sm -fixed" data-multiselect data-empty="источник…">
+                        <div class="multiselect -sm -fixed" data-multiselect data-empty="{{ __('source…') }}">
                             <button type="button" class="ms-toggle" aria-expanded="false" aria-haspopup="true">
                                 <span class="ms-summary"></span><span class="ms-caret">▼</span>
                             </button>
@@ -122,9 +122,9 @@
                         {{-- No min/max between the two: it would block moving the window forward,
                              and an inverted range already explains itself via the empty state. --}}
                         <input type="date" class="f-in" form="vac-filters" name="from" value="{{ $filters['from'] }}"
-                               title="Дата от" aria-label="Дата от">
+                               title="{{ __('Date from') }}" aria-label="{{ __('Date from') }}">
                         <input type="date" class="f-in" form="vac-filters" name="to" value="{{ $filters['to'] }}"
-                               title="Дата до" aria-label="Дата до">
+                               title="{{ __('Date to') }}" aria-label="{{ __('Date to') }}">
                     </div>
                 </th>
                 <th></th>
@@ -139,7 +139,7 @@
                         <a href="{{ route('vacancies.show', $vacancy) }}" class="v-title">{{ Str::limit($vacancy->title, 72) }}</a>
                         @if ($lastRunId && $vacancy->run_id === $lastRunId)<span class="badge -new" style="margin-left:8px">new</span>@endif
                         @if ($vacancy->bumped_at)<span class="badge -bumped" style="margin-left:8px"
-                              title="Источник поднял вакансию {{ $vacancy->bumped_at->format('d.m.Y H:i') }}, она заново прошла оценку">↑ поднята</span>@endif
+                              title="{{ __('The source bumped this vacancy on :time, it was scored again', ['time' => $vacancy->bumped_at->format('d.m.Y H:i')]) }}">↑ {{ __('bumped') }}</span>@endif
                     </td>
                     <td class="muted">{{ Str::limit($vacancy->company, 30) ?: '—' }}</td>
                     <td><span class="tag">{{ $vacancy->source }}</span></td>
@@ -148,11 +148,11 @@
                     <td class="mono faint nowrap" style="font-size:12.5px">{{ ($vacancy->published_at ?? $vacancy->created_at)?->format('d.m.Y') }}</td>
                     <td class="nowrap">
                         @if ($vacancy->applied_at)
-                            <span class="badge -solid" title="Снять отметку можно на странице вакансии">✓ {{ $vacancy->applied_at->format('d.m.Y') }}</span>
+                            <span class="badge -solid" title="{{ __('You can clear this mark on the vacancy page') }}">✓ {{ $vacancy->applied_at->format('d.m.Y') }}</span>
                         @else
                             <form method="post" action="{{ route('vacancies.applied', $vacancy) }}">
                                 @csrf
-                                <button type="submit" class="btn btn-sm">Подал</button>
+                                <button type="submit" class="btn btn-sm">{{ __('I applied') }}</button>
                             </form>
                         @endif
                     </td>
@@ -160,8 +160,8 @@
                         <form method="post" action="{{ route('vacancies.muted', $vacancy) }}">
                             @csrf
                             <button type="submit" class="btn btn-sm {{ $vacancy->muted_at ? 'btn-ghost' : '' }}"
-                                    title="{{ $vacancy->muted_at ? 'Снова присылать вакансию в Telegram' : 'Не присылать эту вакансию в Telegram' }}">
-                                {{ $vacancy->muted_at ? '🔔 Вернуть' : '🔕 Не слать' }}
+                                    title="{{ $vacancy->muted_at ? __('Send this vacancy to Telegram again') : __('Stop sending this vacancy to Telegram') }}">
+                                {{ $vacancy->muted_at ? '🔔 ' . __('Unmute') : '🔕 ' . __('Mute') }}
                             </button>
                         </form>
                     </td>
@@ -169,9 +169,9 @@
             @empty
                 <tr><td colspan="9"><div class="empty">
                     @if ($activeFilters)
-                        Ничего не найдено по заданным фильтрам.
+                        {{ __('Nothing matches these filters.') }}
                     @else
-                        Пока пусто. Запустите поиск на панели.
+                        {{ __('Nothing here yet. Start a search on the dashboard.') }}
                     @endif
                 </div></td></tr>
             @endforelse

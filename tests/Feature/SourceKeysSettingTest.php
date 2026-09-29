@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Sources\IndeedSource;
+use App\Services\Sources\SourceHttp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class JoobleKeysSettingTest extends TestCase
+class SourceKeysSettingTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -18,7 +20,7 @@ class JoobleKeysSettingTest extends TestCase
     }
 
     /** The smallest settings form the controller accepts. */
-    private function save(string $joobleKeys)
+    private function save(string $joobleKeys, array $extra = [])
     {
         return $this->from('/')->post('/settings', [
             'cron_expression' => '0 */6 * * *',
@@ -29,7 +31,7 @@ class JoobleKeysSettingTest extends TestCase
             'linkedin_batch_size' => 2,
             'linkedin_batch_pause' => 15,
             'jooble_keys' => $joobleKeys,
-        ]);
+        ] + $extra);
     }
 
     public function test_country_and_key_pairs_are_stored_by_lowercase_country(): void
@@ -55,5 +57,19 @@ class JoobleKeysSettingTest extends TestCase
         $this->save('aaaa1111-2222')->assertSessionHas('error');
 
         $this->assertSame(['de' => 'old'], Setting::get('jooble_keys'));
+    }
+
+    public function test_indeed_key_is_stored_trimmed(): void
+    {
+        $this->save('', ['indeed_api_key' => '  abc123  '])->assertSessionHas('status');
+
+        $this->assertSame('abc123', Setting::get('indeed_api_key'));
+    }
+
+    public function test_indeed_source_fails_loudly_without_a_key(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        (new IndeedSource)->fetch(['indeed_api_key' => ''], new SourceHttp(null, 'indeed'));
     }
 }

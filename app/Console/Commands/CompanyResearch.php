@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 class CompanyResearch extends Command
 {
     protected $signature = 'company:research {vacancy? : vacancy ID to take the company from} {--name= : research a company by name directly} {--force : ignore freshness TTL}';
+
     protected $description = 'Research a company as an employer (reviews, turnover, WLB, CEO, compensation) via Claude CLI with web search';
 
     public function handle(CompanyResearcher $researcher): int
@@ -22,13 +23,13 @@ class CompanyResearch extends Command
         } else {
             $vacancyId = $this->argument('vacancy');
             if (! $vacancyId) {
-                $this->error('Укажите ID вакансии или --name=<компания>.');
+                $this->error(__('Specify a vacancy ID or --name=<company>.'));
 
                 return self::FAILURE;
             }
             $context = Vacancy::query()->findOrFail($vacancyId);
             if (! $context->company) {
-                $this->error("У вакансии #{$context->id} не указана компания.");
+                $this->error(__('Vacancy #:id has no company.', ['id' => $context->id]));
 
                 return self::FAILURE;
             }
@@ -36,7 +37,10 @@ class CompanyResearch extends Command
         }
 
         if (! $this->option('force') && $researcher->isFresh($company)) {
-            $this->info("Исследование «{$company->name}» ещё свежее ({$company->researched_at->format('d.m.Y H:i')}), используйте --force для обновления.");
+            $this->info(__('Research of «:company» is still fresh (:date), use --force to refresh it.', [
+                'company' => $company->name,
+                'date' => $company->researched_at->format('d.m.Y H:i'),
+            ]));
 
             return self::SUCCESS;
         }

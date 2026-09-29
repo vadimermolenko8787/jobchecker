@@ -9,27 +9,27 @@ class RunController extends Controller
     public function start()
     {
         if (Run::active()) {
-            return back()->with('error', 'Поиск уже выполняется.');
+            return back()->with('error', __('A search is already running.'));
         }
 
         $php = escapeshellarg(PHP_BINARY);
         $artisan = escapeshellarg(base_path('artisan'));
         exec("nohup {$php} {$artisan} jobs:search --trigger=manual > /dev/null 2>&1 &");
 
-        return back()->with('status', 'Поиск запущен в фоне.');
+        return back()->with('status', __('Search started in the background.'));
     }
 
     public function stop()
     {
         $run = Run::query()->where('status', 'running')->latest('id')->first();
         if (! $run) {
-            return back()->with('error', 'Активного поиска нет.');
+            return back()->with('error', __('No search is running.'));
         }
 
         // Only the flag is raised here, the search process itself ends the run: see Run::requestStop().
         $run->requestStop();
 
-        return back()->with('status', 'Остановка запрошена, поиск завершится после текущего шага.');
+        return back()->with('status', __('Stop requested, the search will finish after the current step.'));
     }
 
     public function latest()

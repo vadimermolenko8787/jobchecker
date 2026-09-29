@@ -16,6 +16,7 @@ class Run extends Model
     public const STALE_AFTER_HOURS = 2;
 
     protected $fillable = ['trigger', 'status', 'stats', 'log', 'started_at', 'finished_at'];
+
     protected $casts = [
         'stats' => 'array',
         'started_at' => 'datetime',
@@ -30,7 +31,7 @@ class Run extends Model
             ->latest('id')->first();
     }
 
-    /** @return Collection<int, self> запуски, брошенные убитым процессом в статусе running */
+    /** @return Collection<int, self> runs a killed process left in the running status */
     public static function stale(): Collection
     {
         return static::query()->where('status', 'running')

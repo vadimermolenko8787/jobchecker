@@ -18,11 +18,17 @@ class VacancyScorer
     public const CRITERIA = ['skills', 'stack', 'seniority', 'location'];
 
     public const LABELS = [
-        'skills' => 'Навыки',
-        'stack' => 'Стек',
-        'seniority' => 'Уровень',
-        'location' => 'Локация и формат',
+        'skills' => 'Skills',
+        'stack' => 'Stack',
+        'seniority' => 'Seniority',
+        'location' => 'Location and format',
     ];
+
+    /** @return array<string, string> criterion => caption in the current locale */
+    public static function labels(): array
+    {
+        return array_map(fn (string $label) => __($label), self::LABELS);
+    }
 
     /** Vacancies within this many points of min_score get re-scored individually. */
     public const RECHECK_MARGIN = 7;
@@ -30,11 +36,10 @@ class VacancyScorer
     public const RECHECK_EXTRA_RUNS = 2;
 
     private const EVIDENCE_LIMIT = 5;
+
     private const EVIDENCE_LENGTH = 140;
 
-    public function __construct(private ClaudeCli $claude)
-    {
-    }
+    public function __construct(private ClaudeCli $claude) {}
 
     /**
      * Score a batch in one CLI call.
@@ -151,8 +156,9 @@ class VacancyScorer
     }
 
     /**
+     * Null when the answer lacks a usable rubric, the caller then leaves the vacancy for the next run.
+     *
      * @return array{criteria: array, reason: string, summary: ?string, language: ?array}|null
-     *                                                                                        null when the answer lacks a usable rubric — the caller leaves the vacancy for the next run
      */
     public function parseAnswer(mixed $answer): ?array
     {
@@ -270,15 +276,17 @@ class VacancyScorer
         ])->values()->all();
 
         $languages = implode(', ', $knownLanguages);
+        // Free text is read in the UI, so it follows the interface language.
+        $uiLanguage = strtoupper(DocumentGenerator::LANGUAGES[app()->getLocale()] ?? 'English');
 
         return "You are screening job vacancies for a candidate against a fixed rubric.\n\n"
             . "CANDIDATE RESUME:\n" . $resume->text . "\n\n"
             . "CANDIDATE KNOWN LANGUAGES: {$languages}\n\n"
             . "VACANCIES (JSON):\n" . json_encode($payload, JSON_UNESCAPED_UNICODE) . "\n\n"
-            . "Judge each vacancy INDEPENDENTLY on its own merits. Never compare the vacancies in this "
+            . 'Judge each vacancy INDEPENDENTLY on its own merits. Never compare the vacancies in this '
             . "batch to each other and never spread scores out to differentiate them.\n\n"
-            . "For EVERY vacancy rate the four criteria below from 0 to 10. For each criterion FIRST list the "
-            . "concrete evidence — \"matched\" = requirements the candidate demonstrably meets, \"missing\" = "
+            . 'For EVERY vacancy rate the four criteria below from 0 to 10. For each criterion FIRST list the '
+            . 'concrete evidence — "matched" = requirements the candidate demonstrably meets, "missing" = '
             . "requirements they do not — and only THEN pick the score that follows from that evidence.\n\n"
             . "Anchor scale, identical for all four criteria:\n"
             . "  9-10 = every key requirement of this criterion is covered\n"
@@ -286,31 +294,31 @@ class VacancyScorer
             . "  3-5  = several important requirements are not met\n"
             . "  0-2  = fundamental mismatch\n\n"
             . "Criteria:\n"
-            . "- skills: the engineering substance the role needs (architecture, data modelling, query/performance "
+            . '- skills: the engineering substance the role needs (architecture, data modelling, query/performance '
             . "work, integrations, queues, testing, code review, domain complexity), independent of product names.\n"
-            . "- stack: the concrete technologies. Read the requirements LITERALLY. If the posting accepts any one "
-            . "of several tools (\"Symfony, Laravel or Zend/Laminas\", \"Doctrine or another ORM\") and the candidate "
+            . '- stack: the concrete technologies. Read the requirements LITERALLY. If the posting accepts any one '
+            . 'of several tools ("Symfony, Laravel or Zend/Laminas", "Doctrine or another ORM") and the candidate '
             . "knows at least one of them, that requirement is FULLY met — score it as met even when the team's "
-            . "day-to-day tool is a different item from that list. A specific framework or library the candidate "
-            . "has not used but which sits next to what they know (same language, same paradigm) is a MINOR gap "
-            . "(6-8), not a mismatch. Score 0-5 only when the role is built on technologies the candidate has no "
-            . "path into: another language, another platform, another discipline. Tools listed under "
+            . 'day-to-day tool is a different item from that list. A specific framework or library the candidate '
+            . 'has not used but which sits next to what they know (same language, same paradigm) is a MINOR gap '
+            . '(6-8), not a mismatch. Score 0-5 only when the role is built on technologies the candidate has no '
+            . 'path into: another language, another platform, another discipline. Tools listed under '
             . "\"nice to have\" / \"буде плюсом\" must never pull the score below 9 when everything required is met.\n"
             . "- seniority: required years and level versus the candidate's. Being clearly overqualified is a gap "
             . "too, not a bonus.\n"
-            . "- location: location, remote policy, timezone and work-permit fit, plus stated preferences the "
-            . "candidate happens to satisfy (e.g. \"fully remote\", \"residence abroad preferred\"). If the posting "
-            . "says nothing at all about location or remote work, score 6 and record the silence in \"missing\" — "
+            . '- location: location, remote policy, timezone and work-permit fit, plus stated preferences the '
+            . 'candidate happens to satisfy (e.g. "fully remote", "residence abroad preferred"). If the posting '
+            . 'says nothing at all about location or remote work, score 6 and record the silence in "missing" — '
             . "never invent a restriction that is not written.\n\n"
             . "Then, for every vacancy:\n"
             . "- reason: one short sentence in English stating the overall verdict.\n"
-            . "- summary: 2-3 factual sentences IN RUSSIAN covering the role, stack and conditions "
+            . "- summary: 2-3 factual sentences IN {$uiLanguage} covering the role, stack and conditions "
             . "(remote/salary/company type). No marketing fluff.\n"
-            . "- language: the language the posting is written in, the languages the role actually requires "
-            . "(explicitly stated or strongly implied, e.g. \"client communication in German\"), and how critical "
+            . '- language: the language the posting is written in, the languages the role actually requires '
+            . '(explicitly stated or strongly implied, e.g. "client communication in German"), and how critical '
             . "the barrier is against the candidate's known languages. A posting merely written in Polish for a "
-            . "developer role in a likely English-speaking team is \"warning\"; an explicit \"German C1 for client "
-            . "communication\" is \"critical\". Do NOT adjust the criteria scores for the language barrier — it is "
+            . 'developer role in a likely English-speaking team is "warning"; an explicit "German C1 for client '
+            . 'communication" is "critical". Do NOT adjust the criteria scores for the language barrier — it is '
             . "applied separately.\n\n"
             . "Respond with ONLY a JSON array, no other text:\n"
             . '[{"id": <vacancy id>, "criteria": {'
@@ -319,11 +327,11 @@ class VacancyScorer
             . '"seniority": {"matched": ["..."], "missing": ["..."], "score": <0-10>}, '
             . '"location": {"matched": ["..."], "missing": ["..."], "score": <0-10>}}, '
             . '"reason": "<one short sentence in English>", '
-            . '"summary": "<2-3 предложения на русском>", '
+            . '"summary": "<2-3 sentences in ' . $uiLanguage . '>", '
             . '"language": {"vacancy_language": "<only the name of the language the posting is written in, in English, no comments; spelled as in CANDIDATE KNOWN LANGUAGES when it is one of them>", '
             . '"required_languages": ["<language>", ...], '
             . '"language_fit": "ok" | "warning" | "critical", '
-            . '"note": "<короткое пояснение на русском; пустая строка если fit = ok>"}}]';
+            . '"note": "<short explanation in ' . $uiLanguage . '; empty string if fit = ok>"}}]';
     }
 
     /**

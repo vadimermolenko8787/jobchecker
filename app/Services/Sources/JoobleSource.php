@@ -26,7 +26,7 @@ class JoobleSource implements JobSourceInterface
     {
         $keys = $settings['jooble_keys'] ?? [];
         if ($keys === []) {
-            $http->log('ключи API не заданы, пропускаю');
+            $http->log(__('no API keys set, skipping'));
 
             return [];
         }
@@ -63,7 +63,7 @@ class JoobleSource implements JobSourceInterface
 
         // The key sits in the URL, so the message names the country only.
         if ($failed !== []) {
-            $message = 'API не ответило для ' . implode(', ', $failed) . ', проверьте ключи';
+            $message = __('API did not answer for :countries, check the keys', ['countries' => implode(', ', $failed)]);
             if ($result === []) {
                 throw new \RuntimeException($message);
             }

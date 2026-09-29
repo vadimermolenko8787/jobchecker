@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Sources\LocationCatalog;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class LocationCatalogTest extends TestCase
 {

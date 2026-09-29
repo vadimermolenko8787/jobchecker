@@ -8,6 +8,7 @@ use Carbon\Carbon;
 class JustJoinSource implements JobSourceInterface
 {
     private const API_HEADERS = ['Version' => '2', 'Accept' => 'application/json'];
+
     private const MAX_DETAIL_FETCHES = 20;
 
     public function key(): string

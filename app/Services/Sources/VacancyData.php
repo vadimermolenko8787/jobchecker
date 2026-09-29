@@ -17,6 +17,5 @@ class VacancyData
         public ?string $salary = null,
         public ?Carbon $publishedAt = null,
         public array $raw = [],
-    ) {
-    }
+    ) {}
 }

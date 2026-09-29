@@ -10,8 +10,8 @@ use App\Models\Vacancy;
 use App\Services\Sources\DjinniSource;
 use App\Services\Sources\DouSource;
 use App\Services\Sources\IndeedSource;
-use App\Services\Sources\JobSourceInterface;
 use App\Services\Sources\JobicoSource;
+use App\Services\Sources\JobSourceInterface;
 use App\Services\Sources\JoobleSource;
 use App\Services\Sources\JustJoinSource;
 use App\Services\Sources\LinkedInSource;
@@ -25,14 +25,14 @@ class Pipeline
 {
     /** Descriptions are sent in full, so batches stay small to keep the prompt readable for the model. */
     private const SCORE_BATCH_SIZE = 1;
+
     private const RESEARCH_PER_RUN_LIMIT = 5;
 
     public function __construct(
         private TelegramNotifier $telegram,
         private CompanyResearcher $researcher,
         private VacancyScorer $scorer,
-    ) {
-    }
+    ) {}
 
     public function execute(Run $run): void
     {
@@ -43,11 +43,11 @@ class Pipeline
         try {
             $fetched = $this->fetchSources($run, $settings, $stats);
             $reposted = $this->storeNew($run, $fetched, $settings, $stats);
-            $run->appendLog("Всего получено: " . count($fetched) . ", новых после фильтров: {$stats['new']}"
-                . ($stats['bumped'] ? ", поднято повторно: {$stats['bumped']}, из них в Telegram: " . $reposted->count() : ''));
+            $run->appendLog(__('Fetched in total: :fetched, new after filters: :new', ['fetched' => count($fetched), 'new' => $stats['new']])
+                . ($stats['bumped'] ? __(', bumped again: :bumped, of them to Telegram: :reposted', ['bumped' => $stats['bumped'], 'reposted' => $reposted->count()]) : ''));
 
             if (! $resume) {
-                $run->appendLog('Резюме не загружено — scoring пропущен.');
+                $run->appendLog(__('No resume uploaded, scoring skipped.'));
             } else {
                 $matched = $this->scoreNew($run, $resume, $settings, $stats);
                 // Reposts keep their old verdict, so they join the notification without scoring.
@@ -57,9 +57,9 @@ class Pipeline
 
             $stopped = $run->stopRequested();
             $run->update(['status' => $stopped ? 'cancelled' : 'ok', 'stats' => $stats, 'finished_at' => now()]);
-            $run->appendLog($stopped ? 'Остановлено по запросу.' : 'Готово.');
+            $run->appendLog($stopped ? __('Stopped on request.') : __('Done.'));
         } catch (\Throwable $e) {
-            $run->appendLog('ОШИБКА: ' . $e->getMessage());
+            $run->appendLog(__('ERROR: :error', ['error' => $e->getMessage()]));
             $run->update(['status' => 'failed', 'stats' => $stats, 'finished_at' => now()]);
             throw $e;
         }
@@ -74,25 +74,26 @@ class Pipeline
         $all = [];
 
         foreach ($sources as $source) {
-            if ($this->stopped($run, 'остальные источники')) {
+            if ($this->stopped($run, __('the remaining sources'))) {
                 break;
             }
             $key = $source->key();
             if (empty($enabled[$key])) {
-                $run->appendLog("[{$key}] выключен, пропускаю");
+                $run->appendLog(__('[:source] disabled, skipping', ['source' => $key]));
+
                 continue;
             }
             try {
                 $items = $source->fetch($settings, new SourceHttp($run, $key));
                 $stats['fetched'][$key] = count($items);
-                $run->appendLog("[{$key}] получено вакансий: " . count($items));
+                $run->appendLog(__('[:source] vacancies fetched: :count', ['source' => $key, 'count' => count($items)]));
                 $all = array_merge($all, $items);
             } catch (\Throwable $e) {
                 $stats['errors'][$key] = $e->getMessage();
-                $run->appendLog("[{$key}] ошибка: {$e->getMessage()}");
+                $run->appendLog(__('[:source] error: :error', ['source' => $key, 'error' => $e->getMessage()]));
                 // Sources swallow ordinary bad responses themselves, so an exception here
                 // means the source is broken and silently returning nothing otherwise.
-                $this->alert($run, $settings, "⚠️ Источник {$key} не отработал: {$e->getMessage()}");
+                $this->alert($run, $settings, __('⚠️ Source :source failed: :error', ['source' => $key, 'error' => $e->getMessage()]));
             }
         }
 
@@ -101,7 +102,7 @@ class Pipeline
 
     /**
      * @param  VacancyData[]  $fetched
-     * @return Collection<int, Vacancy> переопубликованные вакансии, которые стоит отправить в Telegram
+     * @return Collection<int, Vacancy> re-posted vacancies worth sending to Telegram
      */
     private function storeNew(Run $run, array $fetched, array $settings, array &$stats): Collection
     {
@@ -175,8 +176,11 @@ class Pipeline
             'bumped_at' => now(),
             'run_id' => $run->id,
         ]);
-        $run->appendLog("[{$vacancy->id}] поднята источником на {$item->publishedAt->format('d.m.Y H:i')}"
-            . ", статус {$vacancy->status} без пересчёта");
+        $run->appendLog(__('[:id] bumped by the source to :date, status :status kept without rescoring', [
+            'id' => $vacancy->id,
+            'date' => $item->publishedAt->format('d.m.Y H:i'),
+            'status' => $vacancy->status,
+        ]));
 
         return true;
     }
@@ -201,7 +205,7 @@ class Pipeline
         return false;
     }
 
-    /** @return Collection<int, Vacancy> вакансии, получившие статус matched в этом проходе */
+    /** @return Collection<int, Vacancy> vacancies that got the matched status in this pass */
     private function scoreNew(Run $run, Resume $resume, array $settings, array &$stats): Collection
     {
         $matched = collect();
@@ -209,7 +213,7 @@ class Pipeline
         if ($pending->isEmpty()) {
             return $matched;
         }
-        $run->appendLog('Scoring через Claude: ' . $pending->count() . ' вакансий...');
+        $run->appendLog(__('Scoring with Claude: :count vacancies...', ['count' => $pending->count()]));
         $minScore = (int) ($settings['min_score'] ?? 70);
         $knownLanguages = array_values((array) ($settings['known_languages'] ?? ['English', 'Russian', 'Ukrainian']));
         $weights = VacancyScorer::weights($settings);
@@ -219,20 +223,22 @@ class Pipeline
         $toRecheck = [];
 
         foreach ($pending->chunk(self::SCORE_BATCH_SIZE) as $batch) {
-            if ($this->stopped($run, 'остаток скоринга')) {
+            if ($this->stopped($run, __('the rest of scoring'))) {
                 break;
             }
             try {
                 $results = $this->scorer->scoreBatch($resume, $batch, $knownLanguages);
             } catch (\Throwable $e) {
-                $run->appendLog('Scoring батча не удался: ' . $e->getMessage());
+                $run->appendLog(__('Batch scoring failed: :error', ['error' => $e->getMessage()]));
+
                 continue;
             }
 
             foreach ($batch as $vacancy) {
                 $result = $results[$vacancy->id] ?? null;
                 if ($result === null) {
-                    $run->appendLog("[{$vacancy->id}] невалидный ответ скоринга, останется на следующий запуск");
+                    $run->appendLog(__('[:id] invalid scoring answer, left for the next run', ['id' => $vacancy->id]));
+
                     continue;
                 }
                 $score = $this->finalScore($result, $weights);
@@ -255,11 +261,11 @@ class Pipeline
                     $matched->push($vacancy);
                 }
             }
-            $run->appendLog("Оценено: {$scored}/{$pending->count()}");
+            $run->appendLog(__('Scored: :scored/:total', ['scored' => $scored, 'total' => $pending->count()]));
         }
 
         foreach ($toRecheck as $item) {
-            if ($this->stopped($run, 'остаток перепроверок')) {
+            if ($this->stopped($run, __('the rest of rechecks'))) {
                 break;
             }
             /** @var Vacancy $vacancy */
@@ -273,7 +279,7 @@ class Pipeline
                 try {
                     $extra = $this->scorer->scoreSingle($resume, $vacancy, $knownLanguages);
                 } catch (\Throwable $e) {
-                    $run->appendLog("[{$vacancy->id}] перепроверка не удалась: {$e->getMessage()}");
+                    $run->appendLog(__('[:id] recheck failed: :error', ['id' => $vacancy->id, 'error' => $e->getMessage()]));
 
                     continue;
                 }
@@ -291,9 +297,14 @@ class Pipeline
             $chosen = $runs[0];
 
             $run->appendLog(
-                "[{$vacancy->id}] score {$item['score']} близко к порогу {$minScore}: "
-                . 'перепроверка [' . implode(', ', $runScores) . "] → медиана {$median}"
-                . ($chosen['score'] === $median ? '' : ", итог {$chosen['score']}"),
+                __('[:id] score :score is close to the threshold :threshold: recheck [:runs] → median :median', [
+                    'id' => $vacancy->id,
+                    'score' => $item['score'],
+                    'threshold' => $minScore,
+                    'runs' => implode(', ', $runScores),
+                    'median' => $median,
+                ])
+                . ($chosen['score'] === $median ? '' : __(', final :score', ['score' => $chosen['score']])),
             );
 
             // The first verdict found the language known; the chosen run gets the final say.
@@ -307,7 +318,7 @@ class Pipeline
         }
 
         if ($foreignCount > 0) {
-            $run->appendLog("Отклонено по языку вакансии: {$foreignCount} (не входит в известные языки: " . implode(', ', $knownLanguages) . ')');
+            $run->appendLog(__('Rejected by vacancy language: :count (not among the known languages: :languages)', ['count' => $foreignCount, 'languages' => implode(', ', $knownLanguages)]));
         }
         $stats['scored'] = $scored;
         $stats['rejected_language'] = $foreignCount;
@@ -403,12 +414,12 @@ class Pipeline
         $token = trim((string) ($settings['telegram_bot_token'] ?? ''));
         $chatId = trim((string) ($settings['telegram_chat_id'] ?? ''));
         if ($token === '' || $chatId === '') {
-            $run->appendLog('Telegram включён, но не заданы token/chat_id — уведомления пропущены.');
+            $run->appendLog(__('Telegram is enabled, but token/chat_id are not set, notifications skipped.'));
 
             return;
         }
 
-        $run->appendLog('Отправка в Telegram: ' . $matched->count() . ' вакансий...');
+        $run->appendLog(__('Sending to Telegram: :count vacancies...', ['count' => $matched->count()]));
         $sent = 0;
         $skipped = 0;
         $muted = 0;
@@ -424,13 +435,13 @@ class Pipeline
         foreach ($matched as $vacancy) {
             $key = $vacancy->duplicateKey();
             if (isset($mutedJobs[$key])) {
-                $run->appendLog("[{$vacancy->id}] заглушена кнопкой «не присылать», пропущена");
+                $run->appendLog(__("[:id] muted with the «don't send» button, skipped", ['id' => $vacancy->id]));
                 $muted++;
 
                 continue;
             }
             if (isset($sentToday[$key])) {
-                $run->appendLog("[{$vacancy->id}] уже отправлялась сегодня, {$vacancy->source} пропущен");
+                $run->appendLog(__('[:id] already sent today, :source skipped', ['id' => $vacancy->id, 'source' => $vacancy->source]));
                 $skipped++;
 
                 continue;
@@ -441,13 +452,13 @@ class Pipeline
                 $sentToday[$key] = true;
                 $sent++;
             } catch (\Throwable $e) {
-                $run->appendLog("[{$vacancy->id}] Telegram не отправлен: {$e->getMessage()}");
+                $run->appendLog(__('[:id] Telegram not sent: :error', ['id' => $vacancy->id, 'error' => $e->getMessage()]));
             }
         }
 
-        $run->appendLog("Отправлено в Telegram: {$sent}/{$matched->count()}"
-            . ($skipped ? ", дублей за сегодня пропущено: {$skipped}" : '')
-            . ($muted ? ", заглушённых пропущено: {$muted}" : ''));
+        $run->appendLog(__('Sent to Telegram: :sent/:total', ['sent' => $sent, 'total' => $matched->count()])
+            . ($skipped ? __(', duplicates from today skipped: :count', ['count' => $skipped]) : '')
+            . ($muted ? __(', muted skipped: :count', ['count' => $muted]) : ''));
         $stats['notified'] = $sent;
     }
 
@@ -470,7 +481,7 @@ class Pipeline
             $this->telegram->sendText($token, $chatId, htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
         } catch (\Throwable $e) {
             // A connection error carries the full request URL, and the token sits in it.
-            $run->appendLog('Алерт не отправлен: ' . str_replace($token, '***', $e->getMessage()));
+            $run->appendLog(__('Alert not sent: :error', ['error' => str_replace($token, '***', $e->getMessage())]));
         }
     }
 
@@ -485,7 +496,7 @@ class Pipeline
         if (! $run->stopRequested()) {
             return false;
         }
-        $run->appendLog("Остановка по запросу, пропускаем: {$skipped}");
+        $run->appendLog(__('Stop requested, skipping: :skipped', ['skipped' => $skipped]));
 
         return true;
     }
@@ -505,25 +516,27 @@ class Pipeline
         }
         if ($names->count() > self::RESEARCH_PER_RUN_LIMIT) {
             $skipped = $names->slice(self::RESEARCH_PER_RUN_LIMIT);
-            $run->appendLog('Исследование компаний: лимит ' . self::RESEARCH_PER_RUN_LIMIT . ' за запуск, пропущены: ' . $skipped->implode(', '));
+            $run->appendLog(__('Company research: limit :limit per run, skipped: :companies', ['limit' => self::RESEARCH_PER_RUN_LIMIT, 'companies' => $skipped->implode(', ')]));
             $names = $names->take(self::RESEARCH_PER_RUN_LIMIT);
         }
 
-        $run->appendLog('Исследование компаний: ' . $names->count() . '...');
+        $run->appendLog(__('Company research: :count...', ['count' => $names->count()]));
         $researched = 0;
 
         foreach ($names as $name) {
-            if ($this->stopped($run, 'остаток исследований')) {
+            if ($this->stopped($run, __('the rest of the research'))) {
                 break;
             }
             $company = Company::firstOrCreateForName($name);
             if ($this->researcher->isFresh($company)) {
-                $run->appendLog("[{$company->name}] кэш свежий, пропускаю");
+                $run->appendLog(__('[:company] cache is fresh, skipping', ['company' => $company->name]));
+
                 continue;
             }
             $flag = "company-researching:{$company->id}";
             if (Cache::has($flag)) {
-                $run->appendLog("[{$company->name}] исследование уже идёт, пропускаю");
+                $run->appendLog(__('[:company] research already running, skipping', ['company' => $company->name]));
+
                 continue;
             }
 
@@ -532,10 +545,10 @@ class Pipeline
                 $context = $matched->first(fn (Vacancy $v) => $v->company && Company::normalize($v->company) === $company->normalized_name);
                 $this->researcher->research($company, $context);
                 $researched++;
-                $run->appendLog("[{$company->name}] исследование готово");
+                $run->appendLog(__('[:company] research done', ['company' => $company->name]));
             } catch (\Throwable $e) {
                 $company->update(['last_error' => $e->getMessage()]);
-                $run->appendLog("[{$company->name}] исследование не удалось: {$e->getMessage()}");
+                $run->appendLog(__('[:company] research failed: :error', ['company' => $company->name, 'error' => $e->getMessage()]));
             } finally {
                 Cache::forget($flag);
             }
@@ -543,5 +556,4 @@ class Pipeline
 
         $stats['researched'] = $researched;
     }
-
 }

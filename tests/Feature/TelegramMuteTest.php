@@ -17,6 +17,7 @@ class TelegramMuteTest extends TestCase
     use RefreshDatabase;
 
     private const TOKEN = 'test-token';
+
     private const CHAT_ID = '42';
 
     /** @var array<int, array<string, mixed>> what the next getUpdates call returns */

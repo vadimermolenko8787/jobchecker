@@ -13,6 +13,7 @@ class TelegramPoll extends Command
     private const OFFSET_KEY = 'telegram_update_offset';
 
     protected $signature = 'telegram:poll';
+
     protected $description = 'Pick up presses of the mute button under Telegram messages';
 
     /**
@@ -75,14 +76,16 @@ class TelegramPoll extends Command
 
         $vacancy = Vacancy::query()->find((int) $parsed[2]);
         if ($vacancy === null) {
-            $telegram->answerCallback($token, $callbackId, 'Вакансия не найдена.');
+            $telegram->answerCallback($token, $callbackId, __('Vacancy not found.'));
 
             return;
         }
 
         $mute = $parsed[1] === 'mute';
         $vacancy->muteJob($mute);
-        $this->info("[{$vacancy->id}] " . ($mute ? 'заглушена' : 'снова присылается'));
+        $this->info($mute
+            ? __('[:id] muted', ['id' => $vacancy->id])
+            : __('[:id] sent again', ['id' => $vacancy->id]));
 
         // The redrawn button is the lasting confirmation and it can be sent at any time, so it
         // goes first. The toast expires seconds after the press, and a poll that arrived late
@@ -92,9 +95,9 @@ class TelegramPoll extends Command
             $telegram->updateMuteButton($token, $chatId, $messageId, $vacancy);
         }
         try {
-            $telegram->answerCallback($token, $callbackId, $mute ? '🔕 Больше не присылаю' : '🔔 Снова присылаю');
+            $telegram->answerCallback($token, $callbackId, $mute ? __('🔕 No longer sending') : __('🔔 Sending again'));
         } catch (\Throwable $e) {
-            $this->warn("[{$vacancy->id}] подтверждение нажатия не принято: {$e->getMessage()}");
+            $this->warn(__('[:id] button press acknowledgement was not accepted: :error', ['id' => $vacancy->id, 'error' => $e->getMessage()]));
         }
     }
 }

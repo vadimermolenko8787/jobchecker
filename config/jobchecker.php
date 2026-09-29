@@ -12,7 +12,4 @@ return [
     // Optional long-lived token (`claude setup-token`) — needed only if the
     // Keychain login is not reachable from the web-server context
     'claude_oauth_token' => env('CLAUDE_CODE_OAUTH_TOKEN'),
-    // Indeed's own mobile-app key, publicly known via the JobSpy project.
-    // If Indeed rotates it, pull the current one from github.com/speedyapply/JobSpy.
-    'indeed_api_key' => env('INDEED_API_KEY'),
 ];

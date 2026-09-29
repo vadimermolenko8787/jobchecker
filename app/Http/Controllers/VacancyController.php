@@ -125,8 +125,8 @@ class VacancyController extends Controller
         $vacancy->update(['applied_at' => $vacancy->applied_at ? null : now()]);
 
         return back()->with('status', $vacancy->applied_at
-            ? "Отмечено: подано {$vacancy->applied_at->format('d.m.Y H:i')}."
-            : 'Отметка о подаче снята.');
+            ? __('Marked as applied on :date.', ['date' => $vacancy->applied_at->format('d.m.Y H:i')])
+            : __('Applied mark removed.'));
     }
 
     public function toggleMuted(Vacancy $vacancy)
@@ -134,17 +134,17 @@ class VacancyController extends Controller
         $vacancy->muteJob($vacancy->muted_at === null);
 
         return back()->with('status', $vacancy->muted_at
-            ? 'Больше не присылаю эту вакансию в Telegram.'
-            : 'Вакансия снова сможет приходить в Telegram.');
+            ? __('This vacancy will no longer be sent to Telegram.')
+            : __('This vacancy can be sent to Telegram again.'));
     }
 
     public function generate(Request $request, Vacancy $vacancy, string $doc)
     {
         if (! Resume::active()) {
-            return back()->with('error', 'Сначала загрузите резюме на панели.');
+            return back()->with('error', __('Upload a resume on the dashboard first.'));
         }
         if (Cache::has("vacancy-generating:{$vacancy->id}")) {
-            return back()->with('error', 'Генерация для этой вакансии уже идёт.');
+            return back()->with('error', __('Generation for this vacancy is already running.'));
         }
         $lang = $request->input('lang');
         if (! array_key_exists((string) $lang, DocumentGenerator::LANGUAGES)) {
@@ -162,17 +162,17 @@ class VacancyController extends Controller
         $instructionsArg = $instructions !== '' ? ' --instructions=' . escapeshellarg($instructions) : '';
         exec("nohup {$php} {$artisan} jobs:generate {$id} --doc={$docArg}{$langArg}{$instructionsArg} > /dev/null 2>&1 &");
 
-        return back()->with('status', 'Генерация запущена, займёт минуту-две. Страница обновится сама.');
+        return back()->with('status', __('Generation started, it takes a minute or two. The page will refresh by itself.'));
     }
 
     public function researchCompany(Vacancy $vacancy)
     {
         if (! $vacancy->company) {
-            return back()->with('error', 'У вакансии не указана компания.');
+            return back()->with('error', __('The vacancy has no company.'));
         }
         $company = Company::firstOrCreateForName($vacancy->company);
         if (Cache::has("company-researching:{$company->id}")) {
-            return back()->with('error', 'Исследование этой компании уже идёт.');
+            return back()->with('error', __('Research of this company is already running.'));
         }
 
         Cache::put("company-researching:{$company->id}", true, now()->addMinutes(20));
@@ -181,7 +181,7 @@ class VacancyController extends Controller
         $id = (int) $vacancy->id;
         exec("nohup {$php} {$artisan} company:research {$id} --force > /dev/null 2>&1 &");
 
-        return back()->with('status', 'Исследование компании запущено (1-3 минуты). Страница обновится сама.');
+        return back()->with('status', __('Company research started (1-3 minutes). The page will refresh by itself.'));
     }
 
     public function previewResume(Vacancy $vacancy)

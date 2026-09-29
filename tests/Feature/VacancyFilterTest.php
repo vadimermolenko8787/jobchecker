@@ -43,7 +43,7 @@ class VacancyFilterTest extends TestCase
         $response->assertOk();
         $response->assertSee('Senior Laravel Developer');
         $response->assertDontSee('Frontend Engineer');
-        $response->assertSee('1 записей');
+        $response->assertSee('1 запись');
     }
 
     public function test_company_filter_matches_substring(): void
@@ -69,7 +69,7 @@ class VacancyFilterTest extends TestCase
         $single->assertOk();
         $single->assertSee('From LinkedIn');
         $single->assertDontSee('From Indeed');
-        $single->assertSee('1 записей');
+        $single->assertSee('1 запись');
 
         $multiple = $this->get('/vacancies?' . http_build_query(['source' => ['linkedin', 'indeed']]));
 
@@ -77,7 +77,7 @@ class VacancyFilterTest extends TestCase
         $multiple->assertSee('From LinkedIn');
         $multiple->assertSee('From Indeed');
         $multiple->assertDontSee('From Dou');
-        $multiple->assertSee('2 записей');
+        $multiple->assertSee('2 записи');
     }
 
     public function test_source_filter_combines_with_the_other_filters_and_is_carried_over(): void
@@ -172,7 +172,7 @@ class VacancyFilterTest extends TestCase
         $response->assertSee('From Latest Run');
         $response->assertSee('Also From Latest');
         $response->assertDontSee('From Older Run');
-        $response->assertSee('2 записей');
+        $response->assertSee('2 записи');
     }
 
     public function test_status_tabs_filter_on_the_status_column(): void
@@ -185,7 +185,7 @@ class VacancyFilterTest extends TestCase
             $response = $this->get("/vacancies?status={$status}");
             $response->assertOk();
             $response->assertSee($kept);
-            $response->assertSee('1 записей');
+            $response->assertSee('1 запись');
         }
     }
 

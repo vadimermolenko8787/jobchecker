@@ -9,6 +9,7 @@ use Symfony\Component\DomCrawler\Crawler;
 class LinkedInSource implements JobSourceInterface
 {
     private const MAX_DETAIL_FETCHES = 30;
+
     private const REQUEST_DELAY_SECONDS = 2;
 
     public function key(): string
@@ -28,7 +29,7 @@ class LinkedInSource implements JobSourceInterface
         $result = [];
         foreach ($locations as $i => $location) {
             if ($i > 0 && $i % $batchSize === 0 && $batchPause > 0) {
-                $http->log("пауза {$batchPause} с перед следующей пачкой локаций");
+                $http->log(__('pausing :seconds s before the next batch of locations', ['seconds' => $batchPause]));
                 sleep($batchPause);
             }
             $url = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?'
@@ -43,8 +44,8 @@ class LinkedInSource implements JobSourceInterface
             sleep(self::REQUEST_DELAY_SECONDS);
             if ($response && $response->status() === 429) {
                 $skipped = count($locations) - $i - 1;
-                $http->log("429 от LinkedIn на локации «{$location}», остановка"
-                    . ($skipped > 0 ? ", не опрошено локаций: {$skipped}" : ''));
+                $http->log(__('429 from LinkedIn at location «:location», stopping', ['location' => $location])
+                    . ($skipped > 0 ? __(', locations not queried: :count', ['count' => $skipped]) : ''));
                 break;
             }
             if (! $response || ! $response->successful()) {
@@ -132,7 +133,7 @@ class LinkedInSource implements JobSourceInterface
 
         // The cap is per run, so say out loud how many were left without a description:
         // a vacancy scored on its title alone gets a much worse score.
-        $http->log("описания загружены для {$loaded} из " . count($new) . ' новых вакансий'
-            . (count($new) > self::MAX_DETAIL_FETCHES ? ' (лимит ' . self::MAX_DETAIL_FETCHES . ' за прогон)' : ''));
+        $http->log(__('descriptions loaded for :loaded of :total new vacancies', ['loaded' => $loaded, 'total' => count($new)])
+            . (count($new) > self::MAX_DETAIL_FETCHES ? __(' (limit :limit per run)', ['limit' => self::MAX_DETAIL_FETCHES]) : ''));
     }
 }

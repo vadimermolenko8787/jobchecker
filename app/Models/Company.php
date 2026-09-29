@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Company extends Model
 {
     protected $fillable = ['name', 'normalized_name', 'research', 'researched_at', 'last_error'];
+
     protected $casts = ['research' => 'array', 'researched_at' => 'datetime'];
 
     /**

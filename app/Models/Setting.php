@@ -7,9 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class Setting extends Model
 {
     protected $primaryKey = 'key';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     protected $fillable = ['key', 'value'];
+
     protected $casts = ['value' => 'json'];
 
     /** Interface languages; the first is the default when nothing is stored. */
@@ -44,6 +48,7 @@ class Setting extends Model
         'justjoin_category' => 3,
         'pracuj_categories' => ['5016', '5015'],
         'jooble_keys' => [],
+        'indeed_api_key' => '',
         'linkedin_batch_size' => 2,
         'linkedin_batch_pause' => 15,
         'telegram_enabled' => false,

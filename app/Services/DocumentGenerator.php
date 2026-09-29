@@ -19,19 +19,23 @@ class DocumentGenerator
         'auto' => 'vacancy language',
     ];
 
-    // code => label shown in the UI
+    // code => label shown in the UI, translated by languageLabels()
     public const LANGUAGE_LABELS = [
-        'en' => 'Английский',
-        'uk' => 'Украинский',
-        'de' => 'Немецкий',
-        'pl' => 'Польский',
-        'ru' => 'Русский',
-        'auto' => 'Язык вакансии',
+        'en' => 'English',
+        'uk' => 'Ukrainian',
+        'de' => 'German',
+        'pl' => 'Polish',
+        'ru' => 'Russian',
+        'auto' => 'Vacancy language',
     ];
 
-    public function __construct(private ClaudeCli $claude)
+    /** @return array<string, string> code => label in the current locale */
+    public static function languageLabels(): array
     {
+        return array_map(fn (string $label) => __($label), self::LANGUAGE_LABELS);
     }
+
+    public function __construct(private ClaudeCli $claude) {}
 
     /**
      * Generate application documents for a vacancy.
@@ -63,17 +67,17 @@ class DocumentGenerator
         $format = [];
         if ($wantResume) {
             $tasks[] = $hasPdf
-                ? "- Read the file original-resume.pdf in the current directory — study BOTH its content and its visual "
-                  . "design (layout, fonts, colors, spacing, section order, dividers). Then produce a tailored version of "
-                  . "the resume as a COMPLETE standalone HTML document that replicates the original design as closely as "
-                  . "possible. Keep the same sections, the same order and the same overall look; only adapt wording and "
+                ? '- Read the file original-resume.pdf in the current directory — study BOTH its content and its visual '
+                  . 'design (layout, fonts, colors, spacing, section order, dividers). Then produce a tailored version of '
+                  . 'the resume as a COMPLETE standalone HTML document that replicates the original design as closely as '
+                  . 'possible. Keep the same sections, the same order and the same overall look; only adapt wording and '
                   . "emphasis to this vacancy. Do not invent facts that are not in the original resume.\n"
-                  . "  HTML constraints (it will be rendered to PDF by dompdf): one self-contained file with an inline "
-                  . "<style> block; NO external resources, images, web fonts or JavaScript; NO flexbox or CSS grid — use "
+                  . '  HTML constraints (it will be rendered to PDF by dompdf): one self-contained file with an inline '
+                  . '<style> block; NO external resources, images, web fonts or JavaScript; NO flexbox or CSS grid — use '
                   . "simple block elements and tables for multi-column areas; fonts limited to 'DejaVu Sans', 'DejaVu Serif' "
                   . "or 'DejaVu Sans Mono'; set @page margins to roughly match the original."
-                : "- Produce a tailored version of the resume below as a COMPLETE standalone HTML document with a clean, "
-                  . "professional single-column design (self-contained, inline <style>, no external resources, no "
+                : '- Produce a tailored version of the resume below as a COMPLETE standalone HTML document with a clean, '
+                  . 'professional single-column design (self-contained, inline <style>, no external resources, no '
                   . "flexbox/grid, DejaVu fonts only). Do not invent facts that are not in the original resume.\n"
                   . "CANDIDATE RESUME:\n" . $resume->text;
             $format[] = "===RESUME_HTML===\n<complete html document>";
@@ -95,7 +99,7 @@ class DocumentGenerator
             array_unshift($tasks, '- Read the file original-resume.pdf in the current directory to learn the candidate\'s background.');
         }
 
-        $prompt = "You are helping a candidate apply for a job. The resume must be in English; "
+        $prompt = 'You are helping a candidate apply for a job. The resume must be in English; '
             . "the cover letter language is specified in its task.\n\n"
             . "VACANCY:\n"
             . "Title: {$vacancy->title}\nCompany: {$vacancy->company}\nLocation: {$vacancy->location}\n"

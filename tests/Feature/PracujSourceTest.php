@@ -16,6 +16,7 @@ class PracujSourceTest extends TestCase
     use RefreshDatabase;
 
     private const LISTING = 'massachusetts.pracuj.pl/*';
+
     // The app has no robots.txt: that page answers 404 and the runtime config sits in
     // the 404 body itself, so the stubs below answer 404 too or they prove nothing.
     private const ROBOTS = 'it.pracuj.pl/robots.txt';

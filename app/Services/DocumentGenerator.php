@@ -53,50 +53,46 @@ class DocumentGenerator
         $wantResume = in_array($what, ['resume', 'both'], true);
         $wantCover = in_array($what, ['cover_letter', 'both'], true);
 
-        // Give claude the original PDF so it can replicate the resume's visual
-        // layout, not just its content.
+        // The original PDF only shows claude how the CV should look. The facts come from the
+        // resume text, which the user may have edited since the upload, so a cover letter alone
+        // does not need the PDF at all.
         $workDir = storage_path("app/claude-work/vacancy-{$vacancy->id}");
         File::ensureDirectoryExists($workDir);
         $originalPdf = storage_path("app/private/{$resume->path}");
-        $hasPdf = is_file($originalPdf);
-        if ($hasPdf) {
+        $usePdf = $wantResume && is_file($originalPdf);
+        if ($usePdf) {
             File::copy($originalPdf, "{$workDir}/original-resume.pdf");
         }
 
         $tasks = [];
         $format = [];
         if ($wantResume) {
-            $tasks[] = $hasPdf
-                ? '- Read the file original-resume.pdf in the current directory — study BOTH its content and its visual '
-                  . 'design (layout, fonts, colors, spacing, section order, dividers). Then produce a tailored version of '
-                  . 'the resume as a COMPLETE standalone HTML document that replicates the original design as closely as '
-                  . 'possible. Keep the same sections, the same order and the same overall look; only adapt wording and '
-                  . "emphasis to this vacancy. Do not invent facts that are not in the original resume.\n"
+            $tasks[] = $usePdf
+                ? '- The file original-resume.pdf in the current directory is the candidate\'s original resume. Use it ONLY '
+                  . 'as a design template: study its visual design (layout, fonts, colors, spacing, section order, dividers), '
+                  . 'but take NO content from it, it may be outdated. Produce a tailored version of the CANDIDATE RESUME above '
+                  . 'as a COMPLETE standalone HTML document that replicates the original design as closely as possible. Follow '
+                  . 'its section order and overall look; only adapt wording and emphasis to this vacancy. Do not invent facts '
+                  . "that are not in the CANDIDATE RESUME.\n"
                   . '  HTML constraints (it will be rendered to PDF by dompdf): one self-contained file with an inline '
                   . '<style> block; NO external resources, images, web fonts or JavaScript; NO flexbox or CSS grid — use '
                   . "simple block elements and tables for multi-column areas; fonts limited to 'DejaVu Sans', 'DejaVu Serif' "
                   . "or 'DejaVu Sans Mono'; set @page margins to roughly match the original."
-                : '- Produce a tailored version of the resume below as a COMPLETE standalone HTML document with a clean, '
-                  . 'professional single-column design (self-contained, inline <style>, no external resources, no '
-                  . "flexbox/grid, DejaVu fonts only). Do not invent facts that are not in the original resume.\n"
-                  . "CANDIDATE RESUME:\n" . $resume->text;
+                : '- Produce a tailored version of the CANDIDATE RESUME above as a COMPLETE standalone HTML document with a '
+                  . 'clean, professional single-column design (self-contained, inline <style>, no external resources, no '
+                  . 'flexbox/grid, DejaVu fonts only). Do not invent facts that are not in the CANDIDATE RESUME.';
             $format[] = "===RESUME_HTML===\n<complete html document>";
         }
         if ($wantCover) {
-            if (! $wantResume || ! $hasPdf) {
-                $tasks[] = "Base the cover letter on this resume:\nCANDIDATE RESUME:\n" . $resume->text;
-            }
             $coverLangInstruction = $coverLanguage === 'auto'
                 ? 'written in the same language as the vacancy description'
                 : 'written in ' . self::LANGUAGES[$coverLanguage];
-            $tasks[] = "- Write a concise, specific cover letter in Markdown (max ~300 words) for this vacancy, {$coverLangInstruction}.";
+            $tasks[] = "- Write a concise, specific cover letter in Markdown (max ~300 words) for this vacancy, {$coverLangInstruction}. "
+                . 'Take the candidate\'s background only from the CANDIDATE RESUME above and do not invent facts.';
             if ($extraInstructions !== null && trim($extraInstructions) !== '') {
                 $tasks[] = '- Additional instructions from the candidate for the cover letter, follow them: ' . trim($extraInstructions);
             }
             $format[] = "===COVER_LETTER===\n<cover letter markdown>";
-        }
-        if ($wantCover && ! $wantResume && $hasPdf) {
-            array_unshift($tasks, '- Read the file original-resume.pdf in the current directory to learn the candidate\'s background.');
         }
 
         $prompt = 'You are helping a candidate apply for a job. The resume must be in English; '
@@ -104,12 +100,13 @@ class DocumentGenerator
             . "VACANCY:\n"
             . "Title: {$vacancy->title}\nCompany: {$vacancy->company}\nLocation: {$vacancy->location}\n"
             . "Description:\n" . mb_substr(strip_tags((string) $vacancy->description), 0, 6000) . "\n\n"
+            . "CANDIDATE RESUME:\n" . $resume->text . "\n\n"
             . "TASKS:\n" . implode("\n", $tasks) . "\n\n"
             . "Respond in EXACTLY this format with these delimiters and nothing else:\n"
             . implode("\n", $format);
 
         try {
-            $text = $this->claude->run($prompt, allowedTools: $hasPdf ? ['Read'] : [], workDir: $workDir);
+            $text = $this->claude->run($prompt, allowedTools: $usePdf ? ['Read'] : [], workDir: $workDir);
         } finally {
             File::deleteDirectory($workDir);
         }

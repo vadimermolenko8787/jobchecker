@@ -357,8 +357,10 @@
                 var button = e.target.closest('[data-mode]');
                 if (!button || !form) return;
                 if (button.getAttribute('data-mode') === 'edit') {
-                    // Shown first, so the editor can take the height of its area.
+                    // Shown first, so the editor can take the height of its area. The panel starts
+                    // below the page header, so its Save row may sit under the fold until scrolled.
                     setMode(pane, 'edit');
+                    form.querySelector('.doc-foot').scrollIntoView({ block: 'nearest' });
                     openEditor(form).catch(function () {
                         setMode(pane, 'pdf');
                         alert(@json(__('Could not load the editor. Check the internet connection.')));

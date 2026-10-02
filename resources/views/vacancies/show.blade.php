@@ -278,6 +278,11 @@
     (function () {
         var panes = document.querySelectorAll('[data-pane]');
         var grid = document.querySelector('.vacancy-grid');
+        // Editor zoom per layout, read before the first showTab() below draws the controls.
+        var ZOOM_MIN = 70;
+        var ZOOM_MAX = 200;
+        var zoomKeys = { normal: 'jc-editor-zoom', wide: 'jc-editor-zoom-wide' };
+        var zoom = { normal: readZoom('normal', 100), wide: readZoom('wide', 130) };
         var JODIT_JS = 'https://cdn.jsdelivr.net/npm/jodit@4.17.1/es2021/jodit.fat.min.js';
         var JODIT_CSS = 'https://cdn.jsdelivr.net/npm/jodit@4.17.1/es2021/jodit.fat.min.css';
         var joditReady = null;
@@ -319,9 +324,43 @@
             return joditReady;
         }
 
-        // Full screen gives the editor the whole grid and enlarges the page inside it.
-        function zoomDocument(editor, on) {
-            editor.editorDocument.documentElement.classList.toggle('-wide', on);
+        // Full screen gives the panel the whole grid. The editor page has its own zoom in the
+        // normal and in the full screen layout, each level remembered in this browser.
+
+        function readZoom(layout, fallback) {
+            try {
+                var saved = parseInt(localStorage.getItem(zoomKeys[layout]), 10);
+                return saved >= ZOOM_MIN && saved <= ZOOM_MAX ? saved : fallback;
+            } catch (e) {
+                return fallback;
+            }
+        }
+
+        function currentLayout() {
+            return grid.classList.contains('-doc-wide') ? 'wide' : 'normal';
+        }
+
+        function applyZoom(form) {
+            var doc = form.__editor.editorDocument;
+            doc.documentElement.classList.toggle('-wide', currentLayout() === 'wide');
+            doc.body.style.zoom = zoom[currentLayout()] / 100;
+        }
+
+        function showZoom() {
+            var level = zoom[currentLayout()];
+            document.querySelectorAll('[data-zoom-label]').forEach(function (label) { label.textContent = level + '%'; });
+            document.querySelectorAll('[data-zoom]').forEach(function (button) {
+                button.disabled = parseInt(button.getAttribute('data-zoom'), 10) < 0 ? level <= ZOOM_MIN : level >= ZOOM_MAX;
+            });
+        }
+        function changeZoom(step) {
+            var layout = currentLayout();
+            zoom[layout] = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom[layout] + step));
+            try { localStorage.setItem(zoomKeys[layout], zoom[layout]); } catch (e) {}
+            showZoom();
+            document.querySelectorAll('[data-editor]').forEach(function (form) {
+                if (form.__editor) applyZoom(form);
+            });
         }
 
         function setWide(on) {
@@ -330,9 +369,15 @@
                 button.textContent = button.getAttribute(on ? 'data-label-on' : 'data-label-off');
                 button.setAttribute('aria-pressed', on ? 'true' : 'false');
             });
+            showZoom();
+            // The PDF viewer fits the page to the width only when it loads, so it reloads
+            // and fits the new width.
+            document.querySelectorAll('.doc-frame').forEach(function (frame) {
+                try { frame.contentWindow.location.reload(); } catch (e) {}
+            });
             document.querySelectorAll('[data-editor]').forEach(function (form) {
                 if (!form.__editor) return;
-                zoomDocument(form.__editor, on);
+                applyZoom(form);
                 // The toolbar row above wraps differently at the two widths, so the editor
                 // takes the new height of its area.
                 form.__editor.e.fire('setHeight', form.querySelector('.doc-editor-area').clientHeight);
@@ -340,7 +385,6 @@
         }
 
         function setMode(pane, mode) {
-            if (mode !== 'edit') setWide(false);
             pane.querySelectorAll('.vbtn').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-mode') === mode); });
             pane.querySelectorAll('[data-view]').forEach(function (v) { v.hidden = v.getAttribute('data-view') !== mode; });
         }
@@ -353,7 +397,7 @@
                 var editor = Jodit.make(form.querySelector('[data-editor-target]'), {
                     iframe: true,
                     iframeStyle: 'html{background:#fff}body{margin:0;padding:28px 32px;background:#fff;color:#1a1a1a}'
-                        + 'html.-wide body{max-width:210mm;margin:0 auto;zoom:1.3}\n'
+                        + 'html.-wide body{max-width:210mm;margin:0 auto}\n'
                         + form.querySelector('[data-editor-style]').value,
                     height: area.clientHeight || 600,
                     toolbarAdaptive: false,
@@ -365,8 +409,8 @@
                     buttons: ['bold', 'italic', 'underline', '|', 'paragraph', 'ul', 'ol', 'table', 'link', '|', 'undo', 'redo', 'source'],
                 });
                 editor.value = form.querySelector('[data-editor-source]').defaultValue;
-                zoomDocument(editor, grid.classList.contains('-doc-wide'));
                 form.__editor = editor;
+                applyZoom(form);
                 return editor;
             });
         }
@@ -374,6 +418,11 @@
         panes.forEach(function (pane) {
             var form = pane.querySelector('[data-editor]');
             pane.addEventListener('click', function (e) {
+                var zoomButton = e.target.closest('[data-zoom]');
+                if (zoomButton) {
+                    changeZoom(parseInt(zoomButton.getAttribute('data-zoom'), 10));
+                    return;
+                }
                 if (e.target.closest('[data-wide-toggle]')) {
                     setWide(!grid.classList.contains('-doc-wide'));
                     if (form) form.querySelector('.doc-foot').scrollIntoView({ block: 'nearest' });

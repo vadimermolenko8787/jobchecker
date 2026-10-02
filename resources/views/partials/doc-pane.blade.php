@@ -58,15 +58,20 @@
                     <button type="button" class="vbtn is-active" data-mode="pdf">{{ __('PDF preview') }}</button>
                     <button type="button" class="vbtn" data-mode="edit">{{ __('Editor') }}</button>
                 </div>
-                <button type="button" class="btn btn-sm btn-ghost" data-view="edit" data-wide-toggle hidden aria-pressed="false"
+                <button type="button" class="btn btn-sm btn-ghost" data-wide-toggle aria-pressed="false"
                         data-label-on="{{ __('Exit full screen') }}" data-label-off="{{ __('Full screen') }}">{{ __('Full screen') }}</button>
+                <div class="vswitch" data-view="edit" hidden role="group" aria-label="{{ __('Document zoom') }}">
+                    <button type="button" class="vbtn" data-zoom="-10" aria-label="{{ __('Zoom out') }}">−</button>
+                    <span class="vbtn mono" data-zoom-label style="cursor:default;min-width:58px;justify-content:center">100%</span>
+                    <button type="button" class="vbtn" data-zoom="10" aria-label="{{ __('Zoom in') }}">+</button>
+                </div>
             </div>
             <div class="stack" style="gap:8px">
                 <a href="{{ route('vacancies.download', [$vacancy, $doc]) }}" class="btn btn-sm btn-ghost">{{ __('Source (:ext)', ['ext' => '.' . $parts['ext']]) }}</a>
                 <a href="{{ route('vacancies.download', [$vacancy, $doc, 'pdf']) }}" class="btn btn-sm btn-primary">{{ __('Download PDF') }}</a>
             </div>
         </div>
-        <iframe class="doc-frame" data-view="pdf" src="{{ route('vacancies.pdf', [$vacancy, $doc]) }}" title="{{ $isCover ? 'Cover letter' : 'CV' }} PDF" loading="lazy"></iframe>
+        <iframe class="doc-frame" data-view="pdf" src="{{ route('vacancies.pdf', [$vacancy, $doc]) }}#view=FitH" title="{{ $isCover ? 'Cover letter' : 'CV' }} PDF" loading="lazy"></iframe>
         <form method="post" action="{{ route('vacancies.documents.update', [$vacancy, $doc]) }}" class="doc-editor" data-view="edit" data-editor hidden>
             @csrf
             @method('PUT')

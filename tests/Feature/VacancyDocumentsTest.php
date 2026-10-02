@@ -190,12 +190,15 @@ class VacancyDocumentsTest extends TestCase
         ]);
 
         $this->get(route('vacancies.show', $vacancy))->assertOk()
-            ->assertSee(route('vacancies.pdf', [$vacancy, 'resume']), false)
+            // fit to width, so the page fills the panel at both widths
+            ->assertSee(route('vacancies.pdf', [$vacancy, 'resume']) . '#view=FitH', false)
             ->assertSee(route('vacancies.documents.update', [$vacancy, 'resume']), false)
             ->assertSee('&lt;h1&gt;Jane Doe&lt;/h1&gt;', false)
             ->assertSee('h1{color:#c00}', false)
-            // the editor can take the whole grid width
-            ->assertSee('data-view="edit" data-wide-toggle', false)
+            // full screen is offered in both modes, zoom in the editor
+            ->assertSee('class="btn btn-sm btn-ghost" data-wide-toggle aria-pressed="false"', false)
+            ->assertSee('data-zoom="-10"', false)
+            ->assertSee('data-zoom="10"', false)
             // regenerating would overwrite manual edits, so it asks first
             ->assertSee('data-confirm="', false);
     }

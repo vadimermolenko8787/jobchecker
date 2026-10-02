@@ -403,6 +403,7 @@
         .vbtn + .vbtn { border-left: 1px solid var(--line); }
         .vbtn:hover { color: var(--text); }
         .vbtn.is-active { background: var(--signal-dim); color: var(--signal); }
+        .vbtn:disabled { opacity: .4; cursor: not-allowed; }
 
         /* ---- settings page ---- */
         .settings { display: grid; grid-template-columns: 220px minmax(0,1fr); gap: 28px; align-items: start; }

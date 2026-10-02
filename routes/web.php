@@ -32,6 +32,12 @@ Route::middleware('auth')->group(function () {
         ->whereIn('doc', ['resume', 'cover_letter'])
         ->whereIn('format', ['md', 'html', 'pdf'])
         ->name('vacancies.download');
+    Route::get('/vacancies/{vacancy}/pdf/{doc}', [VacancyController::class, 'pdf'])
+        ->whereIn('doc', ['resume', 'cover_letter'])
+        ->name('vacancies.pdf');
+    Route::put('/vacancies/{vacancy}/documents/{doc}', [VacancyController::class, 'updateDocument'])
+        ->whereIn('doc', ['resume', 'cover_letter'])
+        ->name('vacancies.documents.update');
     Route::get('/vacancies/{vacancy}/preview/resume', [VacancyController::class, 'previewResume'])
         ->name('vacancies.preview-resume');
     Route::post('/vacancies/{vacancy}/generate/{doc}', [VacancyController::class, 'generate'])

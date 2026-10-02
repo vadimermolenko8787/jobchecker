@@ -10,6 +10,7 @@ use App\Services\DocumentGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class VacancyController extends Controller
@@ -194,24 +195,127 @@ class VacancyController extends Controller
 
     public function download(Vacancy $vacancy, string $doc, string $format = 'md')
     {
-        $path = $doc === 'resume' ? $vacancy->resume_path : $vacancy->cover_letter_path;
-        abort_unless($path && is_file(storage_path("app/private/{$path}")), 404);
-        $full = storage_path("app/private/{$path}");
-        $isHtml = str_ends_with($path, '.html');
+        $full = $this->documentFile($vacancy, $doc);
+        abort_unless($full, 404);
 
         if ($format !== 'pdf') {
-            $ext = $isHtml ? 'html' : 'md';
+            $ext = pathinfo($full, PATHINFO_EXTENSION);
 
             return response()->download($full, "vacancy-{$vacancy->id}-{$doc}.{$ext}");
         }
 
-        $html = $isHtml
-            ? file_get_contents($full)
-            : view('pdf.document', [
-                'title' => ($doc === 'resume' ? 'Resume — ' : 'Cover letter — ') . $vacancy->title,
-                'html' => Str::markdown(file_get_contents($full), ['html_input' => 'strip']),
-            ])->render();
+        return $this->renderPdf($vacancy, $doc, $full)->download("vacancy-{$vacancy->id}-{$doc}.pdf");
+    }
 
-        return Pdf::loadHTML($html)->setPaper('a4')->download("vacancy-{$vacancy->id}-{$doc}.pdf");
+    /** The same PDF as the download, opened by the browser's own viewer. */
+    public function pdf(Vacancy $vacancy, string $doc)
+    {
+        $full = $this->documentFile($vacancy, $doc);
+        abort_unless($full, 404);
+
+        return $this->renderPdf($vacancy, $doc, $full)->stream("vacancy-{$vacancy->id}-{$doc}.pdf");
+    }
+
+    public function updateDocument(Request $request, Vacancy $vacancy, string $doc)
+    {
+        $data = $request->validate(['html' => ['required', 'string', 'max:200000']]);
+        $full = $this->documentFile($vacancy, $doc);
+        abort_unless($full, 404);
+
+        // The edited body goes back into the stored page, so its <head> and <style> survive.
+        // Markdown has no page yet and gets the template its PDF was rendered with.
+        $body = $this->sanitizeHtml($data['html']);
+        $html = $this->replaceBody($this->documentHtml($vacancy, $doc, $full), $body)
+            ?? $this->wrapDocument($vacancy, $doc, $body);
+
+        $column = $doc === 'resume' ? 'resume_path' : 'cover_letter_path';
+        $name = $doc === 'resume' ? 'resume.html' : 'cover_letter.html';
+        $target = dirname($full) . "/{$name}";
+        File::put($target, $html);
+        if ($target !== $full) {
+            File::delete($full);
+        }
+        $vacancy->update([$column => dirname($vacancy->{$column}) . "/{$name}"]);
+
+        return redirect(route('vacancies.show', $vacancy) . ($doc === 'resume' ? '#cv' : '#cover'))
+            ->with('status', __('Document saved.'));
+    }
+
+    /** Absolute path of a generated document, or null when there is none on disk. */
+    private function documentFile(Vacancy $vacancy, string $doc): ?string
+    {
+        $path = $doc === 'resume' ? $vacancy->resume_path : $vacancy->cover_letter_path;
+        $full = $path ? storage_path("app/private/{$path}") : null;
+
+        return $full && is_file($full) ? $full : null;
+    }
+
+    /** The document as a full HTML page: stored HTML as is, Markdown inside the PDF template. */
+    private function documentHtml(Vacancy $vacancy, string $doc, string $full): string
+    {
+        $content = file_get_contents($full);
+
+        return str_ends_with($full, '.html')
+            ? $content
+            : $this->wrapDocument($vacancy, $doc, Str::markdown($content, ['html_input' => 'strip']));
+    }
+
+    private function wrapDocument(Vacancy $vacancy, string $doc, string $body): string
+    {
+        return view('pdf.document', [
+            'title' => ($doc === 'resume' ? 'Resume — ' : 'Cover letter — ') . $vacancy->title,
+            'html' => $body,
+        ])->render();
+    }
+
+    private function renderPdf(Vacancy $vacancy, string $doc, string $full): \Barryvdh\DomPDF\PDF
+    {
+        return Pdf::loadHTML($this->documentHtml($vacancy, $doc, $full))->setPaper('a4');
+    }
+
+    /** $document with $body inside its <body>, or null when it has no body element. */
+    private function replaceBody(string $document, string $body): ?string
+    {
+        $result = preg_replace_callback(
+            '/(<body\b[^>]*>).*(<\/body>)/is',
+            fn (array $m) => $m[1] . $body . $m[2],
+            $document,
+            1,
+            $count,
+        );
+
+        return $count === 1 ? $result : null;
+    }
+
+    /**
+     * Drops what could run code from editor HTML. There is one user, but the HTML is
+     * rendered by dompdf and opened in the browser from this origin.
+     */
+    private function sanitizeHtml(string $html): string
+    {
+        $dom = new \DOMDocument;
+        // The XML declaration makes libxml read the fragment as UTF-8 instead of Latin-1.
+        $dom->loadHTML(
+            '<?xml encoding="UTF-8"><div>' . $html . '</div>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR | LIBXML_NOWARNING,
+        );
+        $xpath = new \DOMXPath($dom);
+        foreach (iterator_to_array($xpath->query('//script|//iframe|//object|//embed')) as $node) {
+            $node->parentNode->removeChild($node);
+        }
+        foreach (iterator_to_array($xpath->query('//@*')) as $attribute) {
+            $name = strtolower($attribute->nodeName);
+            $scriptUrl = in_array($name, ['href', 'src'], true) && preg_match('/^\s*javascript:/i', $attribute->nodeValue);
+            if (str_starts_with($name, 'on') || $scriptUrl) {
+                $attribute->ownerElement->removeAttribute($attribute->nodeName);
+            }
+        }
+
+        $clean = '';
+        foreach ($dom->documentElement->childNodes as $child) {
+            $clean .= $dom->saveHTML($child);
+        }
+
+        return $clean;
     }
 }

@@ -110,6 +110,27 @@ class VacancyDocumentsTest extends TestCase
         $this->assertStringContainsString('@page', $html);
     }
 
+    public function test_a_styled_cv_without_a_body_element_keeps_its_styles(): void
+    {
+        $vacancy = $this->vacancyWith(['resume.html' => '<style>h1{color:#c00}</style><h1>Old</h1>']);
+
+        $this->put(route('vacancies.documents.update', [$vacancy, 'resume']), ['html' => '<h1>New</h1>']);
+
+        $html = $this->stored($vacancy, 'resume.html');
+        $this->assertStringContainsString('<style>h1{color:#c00}</style>', $html);
+        $this->assertStringContainsString('<body><h1>New</h1></body>', $html);
+        $this->assertStringNotContainsString('Old', $html);
+    }
+
+    public function test_a_stray_closing_tag_does_not_drop_the_rest_of_the_document(): void
+    {
+        $vacancy = $this->vacancyWith(['resume.html' => '<html><body><h1>Old</h1></body></html>']);
+
+        $this->put(route('vacancies.documents.update', [$vacancy, 'resume']), ['html' => '<p>one</p></div><p>two</p><h2>three</h2>']);
+
+        $this->assertStringContainsString('<body><p>one</p><p>two</p><h2>three</h2></body>', $this->stored($vacancy, 'resume.html'));
+    }
+
     public function test_saving_needs_html_and_an_existing_document(): void
     {
         $vacancy = $this->vacancyWith(['resume.html' => '<html><body>x</body></html>']);

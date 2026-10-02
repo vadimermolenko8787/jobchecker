@@ -214,10 +214,14 @@ class VacancyController extends Controller
         abort_unless($full, 404);
 
         // The edited body goes back into the stored page, so its <head> and <style> survive.
-        // Markdown has no page yet and gets the template its PDF was rendered with.
+        // Markdown has no page yet and gets the template its PDF was rendered with. A page
+        // without a <body> element keeps its styles, which the editor already showed.
         $body = $this->sanitizeHtml($data['html']);
-        $html = $this->replaceBody($this->documentHtml($vacancy, $doc, $full), $body)
-            ?? $this->wrapDocument($vacancy, $doc, $body);
+        $document = $this->documentHtml($vacancy, $doc, $full);
+        $style = $this->editorParts($document)['style'];
+        $html = $this->replaceBody($document, $body) ?? ($style !== ''
+            ? "<!doctype html>\n<html><head><meta charset=\"utf-8\"><style>{$style}</style></head><body>{$body}</body></html>\n"
+            : $this->wrapDocument($vacancy, $doc, $body));
 
         $column = $doc === 'resume' ? 'resume_path' : 'cover_letter_path';
         $name = $doc === 'resume' ? 'resume.html' : 'cover_letter.html';
@@ -301,10 +305,11 @@ class VacancyController extends Controller
     private function sanitizeHtml(string $html): string
     {
         $dom = new \DOMDocument;
-        // The XML declaration makes libxml read the fragment as UTF-8 instead of Latin-1.
+        // The XML declaration makes libxml read the fragment as UTF-8 instead of Latin-1. A real
+        // <body> rather than a wrapper element, so a stray closing tag cannot end it early.
         $dom->loadHTML(
-            '<?xml encoding="UTF-8"><div>' . $html . '</div>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOERROR | LIBXML_NOWARNING,
+            '<?xml encoding="UTF-8"><html><body>' . $html . '</body></html>',
+            LIBXML_HTML_NODEFDTD | LIBXML_NOERROR | LIBXML_NOWARNING,
         );
         $xpath = new \DOMXPath($dom);
         foreach (iterator_to_array($xpath->query('//script|//iframe|//object|//embed')) as $node) {
@@ -319,7 +324,7 @@ class VacancyController extends Controller
         }
 
         $clean = '';
-        foreach ($dom->documentElement->childNodes as $child) {
+        foreach ($dom->getElementsByTagName('body')->item(0)->childNodes as $child) {
             $clean .= $dom->saveHTML($child);
         }
 

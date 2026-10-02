@@ -14,13 +14,17 @@ use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
 {
+    public function edit()
+    {
+        return view('settings.edit', ['settings' => Setting::all_settings()]);
+    }
+
     public function update(Request $request)
     {
         $data = $request->validate([
             'cron_expression' => ['required', 'string'],
             'schedule_enabled' => ['nullable', 'boolean'],
             'sources' => ['nullable', 'array'],
-            'search_keywords' => ['nullable', 'string'],
             'locations' => ['nullable', 'array'],
             'locations.*' => ['string', Rule::in(array_keys(LocationCatalog::LOCATIONS))],
             'locations_custom' => ['nullable', 'string'],
@@ -83,7 +87,7 @@ class SettingsController extends Controller
             fn (string $key) => (bool) ($data['sources'][$key] ?? false),
             array_combine(array_keys(Setting::DEFAULTS['sources']), array_keys(Setting::DEFAULTS['sources'])),
         ));
-        Setting::set('search_keywords', $csv($data['search_keywords'] ?? null));
+        // search_keywords are not in this form: they are edited with the resume on the dashboard.
         // Catalog picks and free-form entries end up in one flat list of location strings.
         $locations = array_values(array_unique(array_merge(
             array_values($data['locations'] ?? []),

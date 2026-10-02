@@ -94,8 +94,8 @@ If `claude` is not on the web server's `PATH`, set `CLAUDE_BIN` in `.env` to the
 ## Usage
 
 1. **Upload your resume** (PDF) on the dashboard. Claude extracts your stack keywords and fills them into the search settings, where you can edit them.
-2. **Set the filters:** required keywords and stop words, locations, remote only, the minimum score for document generation, and the weights of the scoring criteria.
-3. **Pick the sources** and their options. API keys (jooble, Indeed) and the Telegram bot token are entered in the same settings form and stored in the database. Locations for LinkedIn and Indeed are chosen from a catalog of EU/EFTA countries and the UK, each one is searched separately. Anything missing from the catalog goes into "Other locations", comma separated, with an optional country code (`Tbilisi:GE`) to include Indeed.
+2. **Set the filters** on the Settings page: required keywords and stop words, locations, remote only, the minimum score for document generation, and the weights of the scoring criteria.
+3. **Pick the sources** and their options. API keys (jooble, Indeed) and the Telegram bot token are entered on the same Settings page and stored in the database. Locations for LinkedIn and Indeed are chosen from a catalog of EU/EFTA countries and the UK, each one is searched separately. Anything missing from the catalog goes into "Other locations", comma separated, with an optional country code (`Tbilisi:GE`) to include Indeed.
 4. **Run a search** with the button in the sidebar, or turn on the schedule and set a cron expression.
 5. **Review results** on the Vacancies page. Matched postings get documents generated automatically, and you can regenerate them with extra instructions or in another language, research the company, or mark the posting as applied.
 
@@ -103,7 +103,7 @@ The interface language is switched at the bottom of the sidebar. It is a global 
 
 ## Scoring
 
-Claude grades four criteria on a 0 to 10 scale, each with an anchored rubric and explicit evidence (`matched` / `missing`): skills, stack, seniority, and location and format. PHP turns them into the final score as a weighted sum (the weights are set on the dashboard and normalised automatically), then applies a language barrier penalty: `warning` subtracts 15, `critical` caps the score at 40.
+Claude grades four criteria on a 0 to 10 scale, each with an anchored rubric and explicit evidence (`matched` / `missing`): skills, stack, seniority, and location and format. PHP turns them into the final score as a weighted sum (the weights are set on the Settings page and normalised automatically), then applies a language barrier penalty: `warning` subtracts 15, `critical` caps the score at 40.
 
 Postings within ±7 points of the threshold are re-scored twice individually and the median of the three runs wins, because a single call near the threshold is noisy. The breakdown and every run are stored in `vacancies.score_breakdown` and shown on the posting page.
 
@@ -111,7 +111,7 @@ Descriptions are sent to the model in full. Truncating them was the main cause o
 
 ## Telegram
 
-Enable Telegram on the dashboard with a bot token and a chat id, then check them with "Send a test message to Telegram".
+Enable Telegram on the Settings page with a bot token and a chat id, then check them with "Send a test message to Telegram".
 
 Each notification has a "🔕 Mute" button. Muting a posting also mutes its copies from other boards (same company and title). The app has no public address, so it doesn't use a webhook: `telegram:poll` fetches button presses with long polling. It is added to the schedule automatically when Telegram is enabled.
 
@@ -122,7 +122,7 @@ Each notification has a "🔕 Mute" button. Muting a posting also mutes its copi
 | dou.ua | public RSS | stable |
 | djinni.co | public RSS | stable, companies are anonymous |
 | justjoin.it | internal JSON API (`Version: 2` header) | stable |
-| it.pracuj.pl | public listing JSON API, categories picked on the dashboard | short descriptions, job pages are behind Cloudflare |
+| it.pracuj.pl | public listing JSON API, categories picked in the settings | short descriptions, job pages are behind Cloudflare |
 | jobico.io | public XML feed for aggregators, filtered locally | one request returns the whole site |
 | jooble | official REST API, one key per country site (`de:key, pl:key`) | snippets instead of full descriptions; off by default |
 | LinkedIn | guest HTML endpoint | fragile, rate limited, queried in batches with a pause |

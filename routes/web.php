@@ -14,6 +14,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/resume', [ResumeController::class, 'store'])->name('resume.store');
+    Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::post('/settings/telegram-test', [SettingsController::class, 'telegramTest'])->name('settings.telegram-test');
 

@@ -277,12 +277,14 @@
 <script>
     (function () {
         var panes = document.querySelectorAll('[data-pane]');
+        var grid = document.querySelector('.vacancy-grid');
         var JODIT_JS = 'https://cdn.jsdelivr.net/npm/jodit@4.17.1/es2021/jodit.fat.min.js';
         var JODIT_CSS = 'https://cdn.jsdelivr.net/npm/jodit@4.17.1/es2021/jodit.fat.min.css';
         var joditReady = null;
 
         // The active tab lives in the hash, so a reload after generation reopens it.
         function showTab(hash) {
+            setWide(false);
             panes.forEach(function (pane) { pane.hidden = pane.getAttribute('data-pane') !== hash; });
             document.querySelectorAll('[data-tab]').forEach(function (tab) {
                 var on = tab.getAttribute('data-tab') === hash;
@@ -317,7 +319,28 @@
             return joditReady;
         }
 
+        // Full screen gives the editor the whole grid and enlarges the page inside it.
+        function zoomDocument(editor, on) {
+            editor.editorDocument.documentElement.classList.toggle('-wide', on);
+        }
+
+        function setWide(on) {
+            grid.classList.toggle('-doc-wide', on);
+            document.querySelectorAll('[data-wide-toggle]').forEach(function (button) {
+                button.textContent = button.getAttribute(on ? 'data-label-on' : 'data-label-off');
+                button.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            document.querySelectorAll('[data-editor]').forEach(function (form) {
+                if (!form.__editor) return;
+                zoomDocument(form.__editor, on);
+                // The toolbar row above wraps differently at the two widths, so the editor
+                // takes the new height of its area.
+                form.__editor.e.fire('setHeight', form.querySelector('.doc-editor-area').clientHeight);
+            });
+        }
+
         function setMode(pane, mode) {
+            if (mode !== 'edit') setWide(false);
             pane.querySelectorAll('.vbtn').forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-mode') === mode); });
             pane.querySelectorAll('[data-view]').forEach(function (v) { v.hidden = v.getAttribute('data-view') !== mode; });
         }
@@ -329,7 +352,8 @@
                 // The document's own styles go into the editor iframe, so it looks like the PDF page.
                 var editor = Jodit.make(form.querySelector('[data-editor-target]'), {
                     iframe: true,
-                    iframeStyle: 'html{background:#fff}body{margin:0;padding:28px 32px;background:#fff;color:#1a1a1a}\n'
+                    iframeStyle: 'html{background:#fff}body{margin:0;padding:28px 32px;background:#fff;color:#1a1a1a}'
+                        + 'html.-wide body{max-width:210mm;margin:0 auto;zoom:1.3}\n'
                         + form.querySelector('[data-editor-style]').value,
                     height: area.clientHeight || 600,
                     toolbarAdaptive: false,
@@ -341,6 +365,7 @@
                     buttons: ['bold', 'italic', 'underline', '|', 'paragraph', 'ul', 'ol', 'table', 'link', '|', 'undo', 'redo', 'source'],
                 });
                 editor.value = form.querySelector('[data-editor-source]').defaultValue;
+                zoomDocument(editor, grid.classList.contains('-doc-wide'));
                 form.__editor = editor;
                 return editor;
             });
@@ -349,6 +374,11 @@
         panes.forEach(function (pane) {
             var form = pane.querySelector('[data-editor]');
             pane.addEventListener('click', function (e) {
+                if (e.target.closest('[data-wide-toggle]')) {
+                    setWide(!grid.classList.contains('-doc-wide'));
+                    if (form) form.querySelector('.doc-foot').scrollIntoView({ block: 'nearest' });
+                    return;
+                }
                 if (e.target.closest('[data-toggle-instructions]')) {
                     var box = pane.querySelector('[data-instructions]');
                     box.hidden = !box.hidden;

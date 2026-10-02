@@ -53,9 +53,13 @@
         </div>
     @elseif ($parts)
         <div class="doc-bar">
-            <div class="vswitch">
-                <button type="button" class="vbtn is-active" data-mode="pdf">{{ __('PDF preview') }}</button>
-                <button type="button" class="vbtn" data-mode="edit">{{ __('Editor') }}</button>
+            <div class="stack" style="gap:8px">
+                <div class="vswitch">
+                    <button type="button" class="vbtn is-active" data-mode="pdf">{{ __('PDF preview') }}</button>
+                    <button type="button" class="vbtn" data-mode="edit">{{ __('Editor') }}</button>
+                </div>
+                <button type="button" class="btn btn-sm btn-ghost" data-view="edit" data-wide-toggle hidden aria-pressed="false"
+                        data-label-on="{{ __('Exit full screen') }}" data-label-off="{{ __('Full screen') }}">{{ __('Full screen') }}</button>
             </div>
             <div class="stack" style="gap:8px">
                 <a href="{{ route('vacancies.download', [$vacancy, $doc]) }}" class="btn btn-sm btn-ghost">{{ __('Source (:ext)', ['ext' => '.' . $parts['ext']]) }}</a>

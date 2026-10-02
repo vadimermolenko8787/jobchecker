@@ -194,6 +194,8 @@ class VacancyDocumentsTest extends TestCase
             ->assertSee(route('vacancies.documents.update', [$vacancy, 'resume']), false)
             ->assertSee('&lt;h1&gt;Jane Doe&lt;/h1&gt;', false)
             ->assertSee('h1{color:#c00}', false)
+            // the editor can take the whole grid width
+            ->assertSee('data-view="edit" data-wide-toggle', false)
             // regenerating would overwrite manual edits, so it asks first
             ->assertSee('data-confirm="', false);
     }

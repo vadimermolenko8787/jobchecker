@@ -445,6 +445,9 @@
         .doc-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; }
         .doc-editor-area { flex: 1; min-height: 0; overflow: hidden; }
         .doc-foot { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line); }
+        /* the editor expanded to the whole grid: the left column steps aside */
+        .vacancy-grid.-doc-wide { grid-template-columns: minmax(0,1fr); }
+        .vacancy-grid.-doc-wide > .vacancy-main { display: none; }
         .doc-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; text-align: center; }
         @media (max-width: 1100px) {
             .vacancy-grid { grid-template-columns: minmax(0,1fr); }

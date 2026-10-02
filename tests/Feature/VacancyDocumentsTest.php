@@ -141,4 +141,48 @@ class VacancyDocumentsTest extends TestCase
         $this->get(route('vacancies.download', [$vacancy, 'cover_letter', 'pdf']))
             ->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
+
+    public function test_a_vacancy_without_documents_offers_to_generate_them(): void
+    {
+        $vacancy = $this->vacancyWith([]);
+
+        $this->get(route('vacancies.show', $vacancy))->assertOk()
+            ->assertSee('href="https://example.test/1"', false)
+            ->assertSee(route('vacancies.generate', [$vacancy, 'resume']) . '#cv', false)
+            ->assertSee(route('vacancies.generate', [$vacancy, 'cover_letter']) . '#cover', false)
+            ->assertDontSee(route('vacancies.pdf', [$vacancy, 'resume']), false)
+            ->assertDontSee('data-confirm="', false);
+    }
+
+    public function test_a_vacancy_with_a_cv_shows_its_pdf_and_editor(): void
+    {
+        $vacancy = $this->vacancyWith([
+            'resume.html' => '<html><head><style>h1{color:#c00}</style></head><body><h1>Jane Doe</h1></body></html>',
+        ]);
+
+        $this->get(route('vacancies.show', $vacancy))->assertOk()
+            ->assertSee(route('vacancies.pdf', [$vacancy, 'resume']), false)
+            ->assertSee(route('vacancies.documents.update', [$vacancy, 'resume']), false)
+            ->assertSee('&lt;h1&gt;Jane Doe&lt;/h1&gt;', false)
+            ->assertSee('h1{color:#c00}', false)
+            // regenerating would overwrite manual edits, so it asks first
+            ->assertSee('data-confirm="', false);
+    }
+
+    public function test_an_html_cover_letter_is_edited_as_html(): void
+    {
+        $vacancy = $this->vacancyWith(['cover_letter.html' => '<html><body><p>Dear Acme team</p></body></html>']);
+
+        $this->get(route('vacancies.show', $vacancy))->assertOk()
+            ->assertSee(route('vacancies.pdf', [$vacancy, 'cover_letter']), false)
+            ->assertSee('&lt;p&gt;Dear Acme team&lt;/p&gt;', false);
+    }
+
+    public function test_a_legacy_markdown_cv_opens_in_the_editor_as_html(): void
+    {
+        $vacancy = $this->vacancyWith(['resume.md' => "# Jane Doe\n"]);
+
+        $this->get(route('vacancies.show', $vacancy))->assertOk()
+            ->assertSee('&lt;h1&gt;Jane Doe&lt;/h1&gt;', false);
+    }
 }

@@ -97,7 +97,7 @@ If `claude` is not on the web server's `PATH`, set `CLAUDE_BIN` in `.env` to the
 2. **Set the filters** on the Settings page: required keywords and stop words, locations, remote only, the minimum score for document generation, and the weights of the scoring criteria.
 3. **Pick the sources** and their options. API keys (jooble, Indeed) and the Telegram bot token are entered on the same Settings page and stored in the database. Locations for LinkedIn and Indeed are chosen from a catalog of EU/EFTA countries and the UK, each one is searched separately. Anything missing from the catalog goes into "Other locations", comma separated, with an optional country code (`Tbilisi:GE`) to include Indeed.
 4. **Run a search** with the button in the sidebar, or turn on the schedule and set a cron expression.
-5. **Review results** on the Vacancies page. Matched postings get documents generated automatically, and you can regenerate them with extra instructions or in another language, research the company, or mark the posting as applied.
+5. **Review results** on the Vacancies page. On a posting's page you generate the resume and cover letter, with extra instructions or in another language, research the company, or mark the posting as applied. The documents open as a PDF preview next to the posting, and the editor lets you fix them by hand before downloading. Regenerating a document replaces those edits, so the page asks first.
 
 The interface language is switched at the bottom of the sidebar. It is a global setting, so run logs and Telegram messages follow it as well.
 

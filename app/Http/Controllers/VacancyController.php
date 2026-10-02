@@ -100,19 +100,18 @@ class VacancyController extends Controller
 
     public function show(Vacancy $vacancy)
     {
-        $readFile = function (?string $path): ?string {
-            $full = $path ? storage_path("app/private/{$path}") : null;
-
-            return $full && is_file($full) ? file_get_contents($full) : null;
-        };
-        $resumeIsHtml = str_ends_with((string) $vacancy->resume_path, '.html');
+        $docs = [];
+        foreach (['resume', 'cover_letter'] as $doc) {
+            $full = $this->documentFile($vacancy, $doc);
+            $docs[$doc] = $full
+                ? $this->editorParts($this->documentHtml($vacancy, $doc, $full)) + ['ext' => pathinfo($full, PATHINFO_EXTENSION)]
+                : null;
+        }
         $company = Company::forName($vacancy->company);
 
         return view('vacancies.show', [
             'vacancy' => $vacancy,
-            'resumeIsHtml' => $resumeIsHtml,
-            'resumeMd' => $resumeIsHtml ? ($readFile($vacancy->resume_path) ? '1' : null) : $readFile($vacancy->resume_path),
-            'coverMd' => $readFile($vacancy->cover_letter_path),
+            'docs' => $docs,
             'generating' => Cache::get("vacancy-generating:{$vacancy->id}"),
             'generationError' => Cache::pull("vacancy-generating-error:{$vacancy->id}"),
             'hasResume' => Resume::active() !== null,
@@ -183,14 +182,6 @@ class VacancyController extends Controller
         exec("nohup {$php} {$artisan} company:research {$id} --force > /dev/null 2>&1 &");
 
         return back()->with('status', __('Company research started (1-3 minutes). The page will refresh by itself.'));
-    }
-
-    public function previewResume(Vacancy $vacancy)
-    {
-        $full = $vacancy->resume_path ? storage_path("app/private/{$vacancy->resume_path}") : null;
-        abort_unless($full && is_file($full) && str_ends_with($full, '.html'), 404);
-
-        return response(file_get_contents($full))->header('Content-Type', 'text/html; charset=utf-8');
     }
 
     public function download(Vacancy $vacancy, string $doc, string $format = 'md')
@@ -271,6 +262,22 @@ class VacancyController extends Controller
     private function renderPdf(Vacancy $vacancy, string $doc, string $full): \Barryvdh\DomPDF\PDF
     {
         return Pdf::loadHTML($this->documentHtml($vacancy, $doc, $full))->setPaper('a4');
+    }
+
+    /**
+     * What the editor edits (the body) and the styles it shows it with, so the
+     * document looks in the editor the way it looks in the PDF.
+     *
+     * @return array{body: string, style: string}
+     */
+    private function editorParts(string $html): array
+    {
+        preg_match_all('/<style\b[^>]*>(.*?)<\/style>/is', $html, $styles);
+        $body = preg_match('/<body\b[^>]*>(.*)<\/body>/is', $html, $m)
+            ? $m[1]
+            : preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
+
+        return ['body' => trim($body), 'style' => implode("\n", $styles[1])];
     }
 
     /** $document with $body inside its <body>, or null when it has no body element. */

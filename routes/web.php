@@ -14,6 +14,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/resume', [ResumeController::class, 'store'])->name('resume.store');
+    Route::put('/resume', [ResumeController::class, 'update'])->name('resume.update');
+    Route::post('/resume/restore-text', [ResumeController::class, 'restoreText'])->name('resume.restore-text');
+    Route::get('/resume/file', [ResumeController::class, 'file'])->name('resume.file');
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::post('/settings/telegram-test', [SettingsController::class, 'telegramTest'])->name('settings.telegram-test');

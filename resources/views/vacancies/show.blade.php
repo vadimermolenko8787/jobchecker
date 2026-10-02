@@ -153,13 +153,6 @@
             @endif
 
             <section class="card">
-                <div class="card-head"><h3>{{ __('Vacancy description') }}</h3></div>
-                <div class="card-body">
-                    <div class="markdown-box" style="background:none;border:0;padding:0">{!! Str::of((string) $vacancy->description)->stripTags('<p><br><ul><ol><li><b><strong><i><em><h1><h2><h3><h4><a>') !!}</div>
-                </div>
-            </section>
-
-            <section class="card">
                 <div class="card-head">
                     <h3>{{ __('About the company') }}</h3>
                     @if ($company?->researched_at)
@@ -258,6 +251,13 @@
                             </div>
                         </form>
                     @endif
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-head"><h3>{{ __('Vacancy description') }}</h3></div>
+                <div class="card-body">
+                    <div class="markdown-box" style="background:none;border:0;padding:0">{!! Str::of((string) $vacancy->description)->stripTags('<p><br><ul><ol><li><b><strong><i><em><h1><h2><h3><h4><a>') !!}</div>
                 </div>
             </section>
         </div>

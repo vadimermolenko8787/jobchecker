@@ -175,6 +175,14 @@ class VacancyDocumentsTest extends TestCase
             ->assertDontSee('data-confirm="', false);
     }
 
+    public function test_the_company_card_comes_before_the_description(): void
+    {
+        $vacancy = $this->vacancyWith([]);
+
+        $this->get(route('vacancies.show', $vacancy))->assertOk()
+            ->assertSeeInOrder(['<h3>' . __('About the company') . '</h3>', '<h3>' . __('Vacancy description') . '</h3>'], false);
+    }
+
     public function test_a_vacancy_with_a_cv_shows_its_pdf_and_editor(): void
     {
         $vacancy = $this->vacancyWith([

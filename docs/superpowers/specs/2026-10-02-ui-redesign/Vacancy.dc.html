@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>JobChecker, вакансия</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1116}
+a{color:var(--signal,#4C8DFF);text-decoration:none}a:hover{color:var(--signal-strong,#6FA3FF)}
+.jc{--ink:#0E1116;--panel:#161B22;--raised:#1C222B;--raised-2:#232A35;--line:#262D37;--line-soft:#1E242D;--text:#E6EAF0;--muted:#9AA4B2;--faint:#7D8794;--signal:#4C8DFF;--signal-strong:#6FA3FF;--signal-fill:#2F6FEB;--signal-fill-hover:#3B7BF5;--signal-dim:rgba(76,141,255,.14);--signal-line:rgba(76,141,255,.42);--ok:#3FB950;--ok-dim:rgba(63,185,80,.15);--info:#A371F7;--info-dim:rgba(163,113,247,.15);--warn:#D29922;--warn-dim:rgba(210,153,34,.15);--danger:#F85149;--danger-dim:rgba(248,81,73,.14);--neutral:#8B949E;--neutral-dim:rgba(139,148,158,.15);--bar:rgba(14,17,22,.92);color-scheme:dark;--sans:'Inter',ui-sans-serif,system-ui,sans-serif;--display:'Space Grotesk','Inter',sans-serif;--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;font-family:var(--sans);color:var(--text);background:var(--ink);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.jc.light{--ink:#F5F6F8;--panel:#FFFFFF;--raised:#F6F8FA;--raised-2:#EEF1F4;--line:#D9DEE4;--line-soft:#E6E9ED;--text:#1F2328;--muted:#57606A;--faint:#6E7781;--signal:#0969DA;--signal-strong:#0550AE;--signal-fill:#0969DA;--signal-fill-hover:#0860C7;--signal-dim:rgba(9,105,218,.10);--signal-line:rgba(9,105,218,.35);--ok:#1A7F37;--ok-dim:rgba(26,127,55,.11);--info:#8250DF;--info-dim:rgba(130,80,223,.11);--warn:#9A6700;--warn-dim:rgba(154,103,0,.11);--danger:#CF222E;--danger-dim:rgba(207,34,46,.09);--neutral:#6E7781;--neutral-dim:rgba(110,119,129,.12);--bar:rgba(255,255,255,.92);color-scheme:light}
+.jc.light .card{box-shadow:0 1px 2px rgba(31,35,40,.04),0 10px 26px -18px rgba(31,35,40,.22)}
+.jc.light .kw button:hover{background:rgba(9,105,218,.16)}
+.jc *{box-sizing:border-box}
+.jc h1,.jc h2,.jc h3{font-family:var(--display);font-weight:600;letter-spacing:-.01em;margin:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:600 14px/1 var(--sans);padding:10px 16px;min-height:40px;border-radius:8px;border:1px solid var(--line);background:var(--raised);color:var(--text);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--faint);background:var(--raised-2);color:var(--text)}
+.btn-primary{background:var(--signal-fill);border-color:var(--signal-fill);color:#FFFFFF}
+.btn-primary:hover{background:var(--signal-fill-hover);border-color:var(--signal-fill-hover);color:#FFFFFF}
+.btn-danger{background:#DA3633;border-color:#DA3633;color:#FFFFFF}
+.btn-ghost{background:transparent}
+.btn-sm{padding:7px 12px;min-height:34px;font-size:13px;font-weight:500}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 8px 24px -12px rgba(0,0,0,.6)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line-soft)}
+.card-head h3{font-size:15px;letter-spacing:.01em}
+.hint{color:var(--faint);font-size:12.5px;font-family:var(--mono)}
+.tag{font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--raised-2);border:1px solid var(--line-soft);padding:2px 8px;border-radius:6px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:600 12px/1.5 var(--mono);white-space:nowrap}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.b-ok{color:var(--ok);background:var(--ok-dim)}.b-sig{color:var(--signal);background:var(--signal-dim)}.b-neutral{color:var(--neutral);background:var(--neutral-dim)}.b-info{color:var(--info);background:var(--info-dim)}.b-warn{color:var(--warn);background:var(--warn-dim)}
+.lab{font-size:13px;font-weight:600}
+.help{font-size:12px;color:var(--faint);line-height:1.5}
+.inp{width:100%;font:14px/1.5 var(--sans);color:var(--text);background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.inp:focus{outline:none;border-color:var(--signal);box-shadow:0 0 0 3px var(--signal-dim)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:7px}
+.nav-a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:8px;color:var(--muted);font-weight:500;font-size:14.5px;text-decoration:none}
+.nav-a:hover{background:var(--raised);color:var(--text)}
+.nav-a.on{background:var(--signal-dim);color:var(--signal)}
+.side-stat{background:var(--raised);border:1px solid var(--line-soft);border-radius:10px;padding:9px 11px}
+.side-stat .n{font-family:var(--mono);font-size:18px;font-weight:700;line-height:1.1}
+.side-stat .l{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat .n{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.03em;margin-top:6px;line-height:1}
+.src-row{display:grid;grid-template-columns:88px minmax(0,1fr) 46px;gap:12px;align-items:center}
+.track{display:block;height:6px;border-radius:999px;background:var(--raised-2);overflow:hidden}
+.fill{display:block;height:100%;border-radius:999px;min-width:3px}
+.sv{font-family:var(--mono);font-size:13px;font-weight:700;text-align:right}
+.kw{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 11px;border-radius:999px;border:1px solid var(--signal-line);background:var(--signal-dim);color:var(--signal);font:500 13px var(--mono)}
+.kw button{width:22px;height:22px;border-radius:50%;border:0;background:transparent;color:inherit;cursor:pointer;display:grid;place-items:center;padding:0}
+.kw button:hover{background:rgba(76,141,255,.25)}
+.run-row{display:grid;grid-template-columns:52px 54px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 20px;border-top:1px solid var(--line-soft);font-size:13px}
+.field{display:flex;flex-direction:column;gap:6px}
+.mono{font-family:var(--mono)}
+.btn-info{background:#8957E5;border-color:#8957E5;color:#FFFFFF}
+.btn-info:hover{background:#9A6CF0;border-color:#9A6CF0;color:#FFFFFF}
+.btn-ok-line{background:var(--ok-dim);border-color:rgba(63,185,80,.45);color:var(--ok)}
+.btn-ok-line:hover{background:rgba(63,185,80,.22);border-color:var(--ok);color:var(--ok)}
+.rb{display:grid;grid-template-columns:130px 48px minmax(0,1fr);gap:8px 12px;align-items:center}
+.rl{font-size:13.5px;font-weight:600}
+.rl small{display:block;font-family:var(--mono);font-size:11px;font-weight:400;color:var(--faint)}
+.rv{font-family:var(--mono);font-size:13px;font-weight:700;text-align:right}
+.ev{grid-column:2 / -1;display:flex;flex-wrap:wrap;gap:6px}
+.ev span{font-size:12px;line-height:1.4;padding:3px 8px;border-radius:6px;border:1px solid var(--line-soft);background:var(--raised-2);color:var(--muted)}
+.ev span.y{border-color:rgba(63,185,80,.45);background:var(--ok-dim);color:var(--ok)}
+.tab{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 16px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:600 13.5px var(--sans);cursor:pointer}
+.tab:hover{color:var(--text)}
+.tab.on{background:var(--raised-2);color:var(--text);box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.tdot{width:7px;height:7px;border-radius:50%}
+.vbtn{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:0 13px;border:0;background:transparent;color:var(--muted);font:500 13px var(--sans);cursor:pointer}
+.vbtn + .vbtn{border-left:1px solid var(--line)}
+.vbtn:hover{color:var(--text)}
+.vbtn.on{background:var(--signal-dim);color:var(--signal)}
+.tb{width:32px;height:32px;display:inline-grid;place-items:center;border:0;border-radius:6px;background:transparent;color:var(--muted);font:14px var(--sans);cursor:pointer}
+.tb:hover{background:var(--raised-2);color:var(--text)}
+.tsep{width:1px;height:20px;background:var(--line);margin:6px 4px}
+.pdf-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#111;border-bottom:1px solid #999;padding-bottom:3px;margin:14px 0 6px}
+</style>
+</helmet>
+<div class="jc {{ themeCls }}" style="display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 1560px">
+
+<aside style="position: sticky; top: 0; align-self: start; height: 100vh; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 22px 16px; gap: 22px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+<span style="width: 30px; height: 30px; border-radius: 9px; background: var(--signal-dim); border: 1px solid var(--signal-line); display: grid; place-items: center; color: var(--signal)"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
+<span style="font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: -.02em">Job<b style="color: var(--signal)">Checker</b></span>
+</div>
+<nav style="display: flex; flex-direction: column; gap: 2px">
+<a class="nav-a" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Панель</a>
+<a class="nav-a on" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h12"></path></svg>Вакансии</a>
+<a class="nav-a" href="Settings.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Настройки</a>
+</nav>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<button type="button" class="btn btn-primary" disabled="disabled" style="width: 100%"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>Запустить поиск</button>
+<button type="button" class="btn btn-danger" style="width: 100%"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>Стоп</button>
+<div class="mono" style="font-size: 12px; color: var(--signal); text-align: center">запуск #900 идёт…</div>
+</div>
+<div style="margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+<div class="side-stat"><div class="n">2572</div><div class="l">в базе</div></div>
+<div class="side-stat"><div class="n" style="color: var(--signal)">529</div><div class="l">matched</div></div>
+<div class="side-stat"><div class="n" style="color: var(--ok)">25</div><div class="l">docs</div></div>
+<div class="side-stat"><div class="n">31</div><div class="l">подано</div></div>
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" class="btn btn-sm btn-ghost" style="flex-grow: 1" onClick="{{ toggleTheme }}" aria-label="Переключить тему"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>Тема</button>
+<button type="button" class="btn btn-sm btn-ghost" style="flex-grow: 1; font-family: var(--mono)">RU / EN</button>
+<button type="button" class="btn btn-sm btn-ghost" style="flex-grow: 1">Выйти</button>
+</div>
+</aside>
+
+<main style="min-width: 0">
+<div style="max-width: 1680px; margin: 0 auto; padding: 24px 28px 60px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px">
+<a href="#" style="color: var(--muted); font-size: 13px">← к списку вакансий</a>
+<span class="mono" style="font-size: 12px; color: var(--faint)">#2458</span>
+</div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start">
+
+<div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+
+<section class="card">
+<div style="padding: 22px 22px 18px; display: flex; gap: 24px; align-items: flex-start">
+<div style="min-width: 0; flex-grow: 1">
+<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px"><span class="badge b-ok">matched</span><span class="tag">jooble</span></div>
+<h1 style="font-size: 25px; line-height: 1.25">Senior PHP Software Engineer (Symfony)</h1>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 14px">
+<span style="color: var(--text); font-weight: 600">Spyrosoft</span><span style="color: var(--faint)">·</span><span>Zdalna, PL</span><span style="color: var(--faint)">·</span><span class="mono" style="color: var(--ok); font-size: 13.5px">100 - 135 zł / stawka godzinowa</span>
+</div>
+</div>
+<div style="flex: none; text-align: center; padding: 10px 16px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--raised)">
+<div class="eyebrow" style="margin-bottom: 4px">Совпадение</div>
+<div class="mono" style="font-size: 34px; font-weight: 700; line-height: 1; color: var(--ok)">84</div>
+<span class="track" style="width: 110px; margin-top: 10px"><span class="fill" style="width: 84%; background: var(--ok)"></span></span>
+</div>
+</div>
+<div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 22px; border-top: 1px solid var(--line-soft); background: rgba(255, 255, 255, .015); border-radius: 0 0 12px 12px">
+<a href="#" class="btn btn-primary" style="min-height: 46px; padding: 12px 20px; font-size: 15px">Открыть на сайте<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"></path></svg></a>
+<button type="button" class="btn btn-ok-line"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"></path></svg>Отметить: подал</button>
+<button type="button" class="btn btn-ghost" style="margin-left: auto" title="Вакансия и её копии с других источников не будут приходить в Telegram"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 10.5-4M18 8c0 7 3 9 3 9H9M13.7 21a2 2 0 0 1-3.4 0M3 3l18 18"></path></svg>Не присылать в Telegram</button>
+</div>
+</section>
+
+<section class="card">
+<div class="card-head"><h3>Скоринг</h3><span class="hint">перепроверено: 71 / 86 / 84 → итог 84</span></div>
+<div style="padding: 20px; display: flex; flex-direction: column; gap: 18px">
+<div style="padding: 14px 16px; border-radius: 10px; background: var(--signal-dim); border: 1px solid var(--signal-line); font-size: 14px; line-height: 1.6">Strong fit for a senior PHP role, with only minor gaps in Symfony 7 depth, DDD/Hexagonal and PHP 8.4.</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div class="rb"><span class="rl">Навыки<small>вес 40%</small></span><span class="rv" style="color: var(--ok)">8/10</span><span class="track"><span class="fill" style="width: 80%; background: var(--ok)"></span></span>
+<span class="ev"><span class="y">REST API design</span><span class="y">Clean architecture and event-driven architecture</span><span class="y">Microservices and async processing with message queues</span><span class="y">Large-scale data and performance work</span><span class="y">Code review, mentoring and testing</span><span>нет: No explicit DDD or Hexagonal Architecture experience</span><span>нет: OpenAPI 3.x not mentioned explicitly</span></span></div>
+<div class="rb"><span class="rl">Стек<small>вес 25%</small></span><span class="rv" style="color: var(--ok)">8/10</span><span class="track"><span class="fill" style="width: 80%; background: var(--ok)"></span></span>
+<span class="ev"><span class="y">PHP 8.3+ at expert level</span><span class="y">Laravel, which satisfies the 'Magento or Laravel' requirement</span><span class="y">Symfony listed in skills</span><span>нет: Hands-on Symfony 7.x LTS not confirmed in the work history</span><span>нет: PHP 8.4+ required, candidate has 8.3+</span></span></div>
+<div class="rb"><span class="rl">Уровень<small>вес 20%</small></span><span class="rv" style="color: var(--ok)">9/10</span><span class="track"><span class="fill" style="width: 90%; background: var(--ok)"></span></span>
+<span class="ev"><span class="y">Senior PHP engineer with 9+ years of experience</span><span class="y">Technical leadership and mentoring</span></span></div>
+<div class="rb"><span class="rl">Локация<small>вес 15%</small></span><span class="rv" style="color: var(--ok)">9/10</span><span class="track"><span class="fill" style="width: 90%; background: var(--ok)"></span></span>
+<span class="ev"><span class="y">Fully remote role (Zdalna) in Poland</span><span class="y">Candidate is based in Warsaw, Poland</span><span>нет: Contract type (hourly rate, likely B2B) not confirmed</span></span></div>
+</div>
+
+<div style="padding: 14px 16px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line-soft); font-size: 14px; line-height: 1.6; color: var(--muted)">Роль Senior PHP Software Engineer в компании Spyrosoft, полностью удалённо из Польши. Стек: PHP 8.4+, Symfony 7.x, Magento или Laravel, REST API и OpenAPI 3.x, DDD и гексагональная архитектура, событийно-ориентированный подход. Оплата почасовая, 100-135 zł в час.</div>
+</div>
+</section>
+
+<section class="card">
+<div class="card-head"><h3>Описание вакансии</h3><span class="hint">jooble отдаёт только фрагмент</span></div>
+<div style="padding: 20px; font-size: 14px; line-height: 1.7">
+<p style="margin: 0">…Very good knowledge of <b>PHP</b> 8.4+. Hands-on experience with Symfony 7.x (LTS). Practical experience with Magento or Laravel. Understanding of REST API design and OpenAPI 3.x. Experience with DDD and Hexagonal Architecture. Ability to work with event-driven…</p>
+</div>
+</section>
+
+<section class="card">
+<div class="card-head"><h3>О компании</h3></div>
+<div style="padding: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+<button type="button" class="btn btn-sm">Исследовать компанию</button>
+<span class="help" style="max-width: 380px">Поиск отзывов сотрудников на Glassdoor, Indeed, DOU и др. Займёт 1-3 минуты.</span>
+</div>
+</section>
+</div>
+
+<aside aria-label="Документы для отклика" class="card" style="position: sticky; top: 20px; height: 1060px; display: flex; flex-direction: column; overflow: hidden">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft)">
+<div role="tablist" style="display: inline-flex; background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 4px; gap: 2px">
+<button type="button" role="tab" class="tab {{ cvTab }}" onClick="{{ showCv }}"><span class="tdot" style="background: var(--ok)"></span>CV</button>
+<button type="button" role="tab" class="tab {{ coverTab }}" onClick="{{ showCover }}"><span class="tdot" style="background: {{ coverDot }}"></span>Cover letter</button>
+</div>
+<sc-if value="{{ isCv }}" hint-placeholder-val="{{ true }}">
+<button type="button" class="btn btn-sm btn-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"></path></svg>Перегенерировать CV</button>
+</sc-if>
+<sc-if value="{{ coverRegen }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; gap: 8px; align-items: center">
+<select class="inp" aria-label="Язык cover letter" style="width: auto; padding: 6px 10px; font-size: 13px; min-height: 34px"><option>English</option><option>Polski</option><option>Deutsch</option></select>
+<button type="button" class="btn btn-sm btn-info" onClick="{{ toggleInstr }}">Инструкции</button>
+<button type="button" class="btn btn-sm btn-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"></path></svg>Перегенерировать</button>
+</div>
+</sc-if>
+</div>
+
+<sc-if value="{{ instrOpen }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 10px 14px; border-bottom: 1px solid var(--line-soft); background: var(--raised)">
+<textarea class="inp" rows="2" aria-label="Дополнительные инструкции" style="font-size: 13px" placeholder="Дополнительные инструкции (необязательно): на что сделать упор, что не упоминать…"></textarea>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasDoc }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft)">
+<div style="display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden">
+<button type="button" class="vbtn {{ pdfBtn }}" onClick="{{ showPdf }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>Просмотр PDF</button>
+<button type="button" class="vbtn {{ editBtn }}" onClick="{{ showEdit }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Редактор</button>
+</div>
+<div style="display: flex; gap: 8px; align-items: center">
+<a href="#" class="btn btn-sm btn-ghost" style="color: var(--muted)">Исходник .html</a>
+<a href="#" class="btn btn-sm btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Скачать PDF</a>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ docPdf }}" hint-placeholder-val="{{ true }}">
+<div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column; background: #3B4049">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; background: #2A2F38; color: #C9D1DC; font: 12px var(--mono)">
+<span>{{ fileName }}</span><span>1 / {{ pages }}</span><span>− 100% +</span>
+</div>
+<div style="flex-grow: 1; overflow: auto; padding: 24px; display: flex; justify-content: center">
+<div style="width: 100%; max-width: 560px; aspect-ratio: 1 / 1.414; background: #FFFFFF; color: #1a1a1a; box-shadow: 0 6px 24px rgba(0, 0, 0, .35); padding: 44px 46px; font-family: 'DejaVu Sans', Verdana, sans-serif; font-size: 10.5px; line-height: 1.5; flex: none">
+<sc-if value="{{ isCv }}" hint-placeholder-val="{{ true }}">
+<div style="font-size: 21px; font-weight: 700; color: #111">[Имя Фамилия]</div>
+<div style="color: #444; margin-top: 2px">Senior PHP Developer · Warsaw, Poland · [email] · [телефон]</div>
+<div class="pdf-h">Summary</div>
+<div>Senior PHP engineer with 9+ years of experience in REST API design, event-driven architecture and message queues. [Кратко о профиле под эту вакансию]</div>
+<div class="pdf-h">Skills</div>
+<div>PHP 8.3+, Symfony, Laravel, Yii2, MySQL, Redis, Vue.js, AWS, REST API, microservices, testing</div>
+<div class="pdf-h">Experience</div>
+<div style="font-weight: 700; color: #111">[Должность] · [Компания]<span style="float: right; font-weight: 400; color: #555">[годы]</span></div>
+<div>· [Достижение, переформулированное под вакансию]</div>
+<div>· [Достижение]</div>
+<div style="font-weight: 700; color: #111; margin-top: 8px">[Должность] · [Компания]<span style="float: right; font-weight: 400; color: #555">[годы]</span></div>
+<div>· [Достижение]</div>
+<div class="pdf-h">Education</div>
+<div>[Учебное заведение]</div>
+</sc-if>
+<sc-if value="{{ isCover }}" hint-placeholder-val="{{ false }}">
+<div style="color: #444">[Имя Фамилия] · [email]</div>
+<div style="margin-top: 24px">Dear Spyrosoft team,</div>
+<p>[Абзац о том, почему роль Senior PHP Software Engineer (Symfony) подходит кандидату]</p>
+<p>[Абзац об опыте с REST API, событийной архитектурой и очередями сообщений]</p>
+<p>[Абзац о готовности работать удалённо из Польши и о следующем шаге]</p>
+<div style="margin-top: 18px">Kind regards,<br>[Имя Фамилия]</div>
+</sc-if>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ docEdit }}" hint-placeholder-val="{{ false }}">
+<div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column">
+<div role="toolbar" aria-label="Форматирование" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 10px; background: var(--raised); border-bottom: 1px solid var(--line)">
+<button type="button" class="tb" aria-label="Жирный"><b>B</b></button>
+<button type="button" class="tb" aria-label="Курсив"><i>I</i></button>
+<button type="button" class="tb" aria-label="Подчёркнутый"><u>U</u></button>
+<span class="tsep"></span>
+<button type="button" class="tb" style="width: auto; padding: 0 9px; font-size: 12.5px">Заголовок ▾</button>
+<button type="button" class="tb" aria-label="Маркированный список"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"></path></svg></button>
+<button type="button" class="tb" aria-label="Нумерованный список"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10M4 5h1v4M4 18h2l-2-3h2"></path></svg></button>
+<button type="button" class="tb" aria-label="Таблица"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1.5"></rect><path d="M3 10h18M9 4v16"></path></svg></button>
+<button type="button" class="tb" aria-label="Ссылка"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg></button>
+<span class="tsep"></span>
+<button type="button" class="tb" aria-label="Отменить"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"></path></svg></button>
+<button type="button" class="tb" aria-label="Повторить"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 14 5-5-5-5M20 9H9a5 5 0 0 0 0 10h3"></path></svg></button>
+<button type="button" class="tb" style="width: auto; padding: 0 9px; margin-left: auto; font: 12px var(--mono)">&lt;/&gt; HTML</button>
+</div>
+<div style="flex-grow: 1; overflow: auto; background: #3B4049; padding: 24px; display: flex; justify-content: center">
+<div contenteditable="true" aria-label="Текст документа" style="width: 100%; max-width: 560px; min-height: 100%; background: #FFFFFF; color: #1a1a1a; padding: 40px 44px; font-family: 'DejaVu Sans', Verdana, sans-serif; font-size: 13px; line-height: 1.55; outline: 2px solid var(--signal); outline-offset: -2px">
+<sc-if value="{{ isCv }}" hint-placeholder-val="{{ true }}">
+<div style="font-size: 22px; font-weight: 700">[Имя Фамилия]</div>
+<div style="color: #444">Senior PHP Developer · Warsaw, Poland</div>
+<div class="pdf-h" style="font-size: 13px">Summary</div>
+<div>Senior PHP engineer with 9+ years of experience in REST API design, event-driven architecture and message queues.</div>
+<div class="pdf-h" style="font-size: 13px">Skills</div>
+<div>PHP 8.3+, Symfony, Laravel, Yii2, MySQL, Redis, Vue.js, AWS</div>
+</sc-if>
+<sc-if value="{{ isCover }}" hint-placeholder-val="{{ false }}">
+<div>Dear Spyrosoft team,</div>
+<p>[Абзац о том, почему роль подходит кандидату]</p>
+<p>[Абзац об опыте]</p>
+</sc-if>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line)">
+<button type="button" class="btn btn-sm btn-primary">Сохранить</button>
+<button type="button" class="btn btn-sm btn-ghost" onClick="{{ showPdf }}">Отменить</button>
+<span style="margin-left: auto; font-size: 12px; color: var(--faint)">После сохранения PDF соберётся заново</span>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ coverEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; text-align: center">
+<span style="width: 52px; height: 52px; border-radius: 14px; background: var(--info-dim); color: var(--info); display: grid; place-items: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg></span>
+<div><div style="font-weight: 600; font-size: 16px">Cover letter ещё не создан</div><div class="help" style="margin-top: 4px; font-size: 13px">Claude напишет письмо под эту вакансию по тексту вашего резюме, это займёт минуту или две.</div></div>
+<div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 420px; text-align: left">
+<label class="lab" for="cl-lang2">Язык письма</label>
+<select id="cl-lang2" class="inp"><option>English</option><option>Polski</option><option>Deutsch</option><option>Как в вакансии</option></select>
+<label class="lab" for="cl-instr">Дополнительные инструкции</label>
+<textarea id="cl-instr" class="inp" rows="3" style="font-size: 13px" placeholder="Необязательно: на что сделать упор, что не упоминать…"></textarea>
+<button type="button" class="btn btn-info" onClick="{{ genCover }}" style="margin-top: 4px">Сгенерировать cover letter</button>
+</div>
+</div>
+</sc-if>
+
+</aside>
+</div>
+</div>
+</main>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1560}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { tab: 'cv', mode: 'pdf', coverReady: false, instr: false, light: null };
+}
+renderVals() {
+const s = this.state;
+const themeLight = this.state.light === null ? this.props.theme === 'light' : this.state.light;
+const isCv = s.tab === 'cv';
+const isCover = s.tab === 'cover';
+const hasDoc = isCv || s.coverReady;
+return {
+themeCls: themeLight ? 'light' : '',
+toggleTheme: () => this.setState({ light: !themeLight }),
+isCv: isCv,
+isCover: isCover,
+hasDoc: hasDoc,
+docPdf: hasDoc && s.mode === 'pdf',
+docEdit: hasDoc && s.mode === 'edit',
+coverEmpty: isCover && !s.coverReady,
+coverRegen: isCover && s.coverReady,
+instrOpen: isCover && s.coverReady && s.instr,
+cvTab: isCv ? 'on' : '',
+coverTab: isCover ? 'on' : '',
+coverDot: s.coverReady ? 'var(--ok)' : 'var(--faint)',
+pdfBtn: s.mode === 'pdf' ? 'on' : '',
+editBtn: s.mode === 'edit' ? 'on' : '',
+fileName: isCv ? 'resume.pdf' : 'cover_letter.pdf',
+pages: isCv ? '2' : '1',
+showCv: () => this.setState({ tab: 'cv', instr: false }),
+showCover: () => this.setState({ tab: 'cover' }),
+showPdf: () => this.setState({ mode: 'pdf' }),
+showEdit: () => this.setState({ mode: 'edit' }),
+genCover: () => this.setState({ coverReady: true, mode: 'pdf' }),
+toggleInstr: () => this.setState({ instr: !s.instr })
+};
+}
+}
+</script>
+</body>
+</html>

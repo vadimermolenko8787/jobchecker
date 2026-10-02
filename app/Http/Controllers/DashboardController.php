@@ -12,7 +12,7 @@ class DashboardController extends Controller
     public function index()
     {
         return view('dashboard', [
-            'settings' => Setting::all_settings(),
+            'keywords' => Setting::get('search_keywords'),
             'resume' => Resume::active(),
             'runs' => Run::query()->latest('id')->limit(10)->get(),
             'counts' => [

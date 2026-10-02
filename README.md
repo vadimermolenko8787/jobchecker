@@ -93,7 +93,7 @@ If `claude` is not on the web server's `PATH`, set `CLAUDE_BIN` in `.env` to the
 
 ## Usage
 
-1. **Upload your resume** (PDF) on the dashboard. Claude extracts your stack keywords and fills them into the search settings, where you can edit them.
+1. **Upload your resume** (PDF) on the dashboard. Claude extracts your stack keywords. The keywords and the resume text can then be edited right on the dashboard: the keywords drive the search on every source, the text is what vacancies are scored against and what the documents are written from. The PDF only sets the design of the generated CV. Vacancies scored before an edit keep their score.
 2. **Set the filters** on the Settings page: required keywords and stop words, locations, remote only, the minimum score for document generation, and the weights of the scoring criteria.
 3. **Pick the sources** and their options. API keys (jooble, Indeed) and the Telegram bot token are entered on the same Settings page and stored in the database. Locations for LinkedIn and Indeed are chosen from a catalog of EU/EFTA countries and the UK, each one is searched separately. Anything missing from the catalog goes into "Other locations", comma separated, with an optional country code (`Tbilisi:GE`) to include Indeed.
 4. **Run a search** with the button in the sidebar, or turn on the schedule and set a cron expression.

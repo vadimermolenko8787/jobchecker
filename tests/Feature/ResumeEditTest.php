@@ -123,4 +123,26 @@ class ResumeEditTest extends TestCase
         $this->resume('<p>CV</p>');
         $this->get('/resume/file')->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
+
+    public function test_the_dashboard_edits_the_resume_text_and_keywords(): void
+    {
+        $resume = $this->resume();
+        $resume->update(['text' => 'Senior PHP developer']);
+        Setting::set('search_keywords', ['PHP', 'Laravel']);
+
+        $this->get('/')->assertOk()
+            ->assertSee('action="' . route('resume.update') . '"', false)
+            ->assertSee('name="_method" value="PUT"', false)
+            ->assertSee('Senior PHP developer')
+            ->assertSee('name="keywords[]" value="Laravel"', false)
+            ->assertSee(route('resume.file'), false)
+            ->assertSee(route('resume.restore-text'), false);
+    }
+
+    public function test_the_dashboard_without_a_resume_offers_the_upload(): void
+    {
+        $this->get('/')->assertOk()
+            ->assertSee('name="resume"', false)
+            ->assertDontSee('name="text"', false);
+    }
 }
